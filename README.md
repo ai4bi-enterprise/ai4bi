@@ -170,7 +170,7 @@ Kiểm thử trước khi push: `pip install -r requirements-dev.txt && pytest -
 
 📬 **Liên hệ:**
 - **Email:** [ai4bi.contact@gmail.com](mailto:ai4bi.contact@gmail.com)
-- **Đặt lịch demo 1-1 trên dữ liệu của bạn:** [Gửi email đặt lịch](mailto:ai4bi.contact@gmail.com?subject=AI4BI%20-%20%C4%90%E1%BA%B7t%20l%E1%BB%8Bch%20demo%201-1)
+- **Đặt lịch demo 1-1 trên dữ liệu của bạn:** [Chọn giờ trên Calendly (30 phút, Google Meet)](https://calendly.com/ai4bi-contact/demo)
 
 ---
 

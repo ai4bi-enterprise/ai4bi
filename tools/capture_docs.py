@@ -86,6 +86,10 @@ async def main() -> None:
         await dp.wait_for_timeout(900)
         await dp.screenshot(path=str(DOCS / "screenshot_dashboard_panel.png"))
         print("[capture] docs/screenshot_dashboard_panel.png")
+        # Social preview (1280x640): Dashboard + panel Trợ lý AI
+        social = await dp.screenshot(clip={"x": 0, "y": 0, "width": 1440, "height": 720})
+        Image.open(io.BytesIO(social)).convert("RGB").resize((1280, 640), Image.LANCZOS).save(DOCS / "social_preview.png")
+        print("[capture] docs/social_preview.png")
         await dp.close()
 
         # --- Trang Trợ lý AI
@@ -99,9 +103,6 @@ async def main() -> None:
             frames.extend([img] * hold)
 
         await grab(4)
-        social = await pg.screenshot(clip={"x": 0, "y": 0, "width": 1440, "height": 720})
-        Image.open(io.BytesIO(social)).convert("RGB").resize((1280, 640), Image.LANCZOS).save(DOCS / "social_preview.png")
-        print("[capture] docs/social_preview.png")
 
         async def ask(q: str, bod: bool = False):
             n = await pg.locator(".msg .card .meta").count()

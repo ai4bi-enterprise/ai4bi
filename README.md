@@ -4,7 +4,6 @@
 
 **Dashboard quản trị và Trợ lý Phân tích dùng chung một lớp ngữ nghĩa: Nhanh, Chính xác, Không bịa số liệu (Zero Hallucination)**
 
-[![Live Demo](https://img.shields.io/badge/🚀_Trải_Nghiệm_Live_Demo-Click_Here-2ea44f?style=for-the-badge)](https://LINK-LIVE-DEMO-CUA-BAN)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Enterprise Inquiry](https://img.shields.io/badge/🏢_Tư_Vấn_Triển_Khai_B2B-Liên_Hệ_Ngay-ff69b4?style=for-the-badge)](#-phiên-bản-pro--dịch-vụ-triển-khai-doanh-nghiệp-commercial)
 
@@ -54,7 +53,6 @@ Dữ liệu mẫu mô phỏng **công ty phân phối hàng tiêu dùng** (3 chi
 |---|---|
 | ![](docs/screenshot_descriptive.png) | ![](docs/screenshot_bod.png) |
 
-👉 **Dùng thử trực tiếp trên trình duyệt:** [Mở Live Demo](https://LINK-LIVE-DEMO-CUA-BAN)
 
 ---
 
@@ -163,12 +161,12 @@ Kiểm thử trước khi push: `pip install -r requirements-dev.txt && pytest -
 ## 💼 Phiên bản Pro & Dịch vụ Triển khai Doanh nghiệp (Commercial)
 
 - **📦 AI4BI Pro Boilerplate** — toàn bộ mã nguồn Frontend, Backend, kết nối đa database và phân quyền.
-  👉 [Mua quyền truy cập Private Repo](#)
+  👉 [Liên hệ mua quyền truy cập Private Repo](mailto:ai4bi.contact@gmail.com?subject=AI4BI%20Pro%20Boilerplate)
 - **🏢 Triển khai trọn gói (Turnkey B2B)** — đấu nối ERP / phần mềm kế toán / Data Warehouse, chuẩn hóa chỉ số cho BOD, triển khai On-Premise.
 
 📬 **Liên hệ:**
 - **Email:** [ai4bi.contact@gmail.com](mailto:ai4bi.contact@gmail.com)
-- **Đặt lịch demo 1-1 trên dữ liệu của bạn:** [Đăng ký tại đây](LINK-GOOGLE-FORM)
+- **Đặt lịch demo 1-1 trên dữ liệu của bạn:** [Gửi email đặt lịch](mailto:ai4bi.contact@gmail.com?subject=AI4BI%20-%20%C4%90%E1%BA%B7t%20l%E1%BB%8Bch%20demo%201-1)
 
 ---
 

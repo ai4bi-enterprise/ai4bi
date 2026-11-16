@@ -97,7 +97,7 @@ class Settings:
     llm_providers: list[LLMProvider] = field(default_factory=list)
     db_path: Path = ROOT / "sample_data" / "enterprise_sample.db"
     rate_limit_per_day: int = 0
-    contact_url: str = "mailto:ai4bi.contact@gmail.com"
+    contact_url: str = "https://github.com/ai4bi-enterprise/ai4bi#-phi%C3%AAn-b%E1%BA%A3n-pro--d%E1%BB%8Bch-v%E1%BB%A5-tri%E1%BB%83n-khai-doanh-nghi%E1%BB%87p-commercial"
     insights_enabled: bool = True
 
     @property
@@ -127,6 +127,6 @@ def load_settings() -> Settings:
         llm_providers=providers,
         db_path=_db_path(_env("DATABASE_URL", "sqlite:///./sample_data/enterprise_sample.db")),
         rate_limit_per_day=int(_env("DEMO_RATE_LIMIT_PER_DAY", "0")),
-        contact_url=_env("CONTACT_URL", "mailto:ai4bi.contact@gmail.com"),
+        contact_url=_env("CONTACT_URL", "https://github.com/ai4bi-enterprise/ai4bi#-phi%C3%AAn-b%E1%BA%A3n-pro--d%E1%BB%8Bch-v%E1%BB%A5-tri%E1%BB%83n-khai-doanh-nghi%E1%BB%87p-commercial"),
         insights_enabled=_bool(_env("INSIGHTS_ENABLED"), True),
     )

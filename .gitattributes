@@ -1,0 +1,8 @@
+# Giữ xuống dòng LF cho mọi file văn bản (run_demo.sh, Dockerfile chạy trên Linux)
+* text=auto eol=lf
+# File .bat cần CRLF để chạy đúng trên Windows
+*.bat text eol=crlf
+# File nhị phân
+*.db binary
+*.png binary
+*.gif binary

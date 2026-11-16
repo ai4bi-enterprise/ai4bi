@@ -1,0 +1,72 @@
+# =============================================================================
+# Gói ngữ nghĩa: CÔNG NỢ PHẢI THU (Community – mẫu)
+# Nguồn dạng "snapshot": số dư tính tại NGÀY CHỐT (:asof).
+#   - Có lọc Quý/Tháng  => ngày chốt = ngày cuối kỳ đó
+#   - Không lọc thời gian => ngày chốt = ngày chốt dữ liệu ("hiện tại")
+# =============================================================================
+sources:
+  ar:
+    table: v_ar
+    kind: snapshot
+    where: "ngay_chung_tu <= :asof AND {outstanding} <> 0"
+    macros:
+      outstanding: "(so_tien - CASE WHEN ngay_thanh_toan IS NOT NULL AND ngay_thanh_toan <= :asof THEN so_tien_da_thu ELSE 0 END)"
+      days_overdue: "(julianday(:asof) - julianday(han_thanh_toan))"
+    dimensions:
+      chi_nhanh: chi_nhanh
+      loai_khach_hang: loai_khach_hang
+      khach_hang: khach_hang
+      nhom_tuoi_no: >-
+        CASE WHEN {days_overdue} <= 0 THEN 'Trong hạn'
+             WHEN {days_overdue} <= 30 THEN 'Quá hạn 1-30 ngày'
+             WHEN {days_overdue} <= 90 THEN 'Quá hạn 31-90 ngày'
+             ELSE 'Quá hạn >90 ngày' END
+
+metrics:
+  du_no:
+    label: Dư nợ phải thu
+    source: ar
+    sql: "SUM({outstanding})"
+    format: money
+    higher_is_better: false
+    additive: true
+    synonyms: ["du no phai thu", "du no", "cong no phai thu", "cong no", "no phai thu"]
+    related: [no_qua_han, ty_le_qua_han_90]
+    actions:
+      bad: "Rà soát hạn mức tín dụng và điều kiện thanh toán của {worst}; đối chiếu tốc độ tăng dư nợ với doanh thu."
+  no_qua_han:
+    label: Nợ quá hạn
+    source: ar
+    sql: "SUM(CASE WHEN {days_overdue} > 0 THEN {outstanding} ELSE 0 END)"
+    format: money
+    higher_is_better: false
+    additive: true
+    synonyms: ["cong no qua han", "no qua han", "qua han"]
+    related: [no_qua_han_90, du_no]
+    actions:
+      bad: "Phân công thu hồi nợ quá hạn của {worst}; xem xét tạm ngừng giao hàng đến khi thanh toán."
+      warn: "Nhắc nợ {worst} và lập lịch thanh toán cụ thể."
+  no_qua_han_90:
+    label: Nợ quá hạn >90 ngày
+    source: ar
+    sql: "SUM(CASE WHEN {days_overdue} > 90 THEN {outstanding} ELSE 0 END)"
+    format: money
+    higher_is_better: false
+    additive: true
+    synonyms: ["re:qua han (tren |hon |>\\s*)?90( ngay)?", "no xau", "no kho doi"]
+    related: [ty_le_qua_han_90, thuc_thu]
+    actions:
+      bad: "Khoanh nợ >90 ngày của {worst}, đánh giá trích lập dự phòng nợ khó đòi và tạm ngừng cấp hàng."
+      warn: "Theo dõi danh sách khách có nợ sắp vượt 90 ngày tại {worst}."
+  ty_le_qua_han_90:
+    label: Tỷ lệ nợ quá hạn >90 ngày
+    source: ar
+    sql: "SUM(CASE WHEN {days_overdue} > 90 THEN {outstanding} ELSE 0 END) * 1.0 / NULLIF(SUM({outstanding}), 0)"
+    format: pct
+    higher_is_better: false
+    assess: {good: 0.05, warn: 0.10}
+    synonyms: ["re:ty le (cong )?no qua han (tren |hon |>\\s*)?90( ngay)?", "ty le no xau"]
+    related: [no_qua_han_90]
+    actions:
+      bad: "Đưa {worst} vào diện kiểm soát tín dụng đặc biệt; đánh giá dự phòng nợ khó đòi."
+      warn: "Theo dõi tỷ lệ nợ quá hạn >90 ngày của {worst} hàng tháng."

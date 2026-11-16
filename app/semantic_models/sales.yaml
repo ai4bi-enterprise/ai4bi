@@ -1,0 +1,108 @@
+# =============================================================================
+# Gói ngữ nghĩa: BÁN HÀNG (Community – mẫu)
+# Công thức chỉ số được định nghĩa MỘT lần tại đây. LLM chỉ chọn tên chỉ số,
+# không bao giờ tự viết SQL => cùng một câu hỏi luôn cho cùng một con số.
+#
+# Khối phân tích (dùng cho Nhận xét / Đánh giá / Kết luận / Đề xuất / Gợi ý):
+#   higher_is_better : chiều "tốt" của chỉ số (tô màu, đánh giá biến động)
+#   assess           : ngưỡng mức  {good, warn}  (chỉ số tỷ lệ)
+#   actions          : đề xuất theo mức  bad | warn | good  ({worst}, {best}, {period})
+#   related          : chỉ số nên xem tiếp (sinh câu hỏi Gợi ý)
+# =============================================================================
+sources:
+  sales:
+    table: v_sales
+    kind: period            # lọc thời gian theo cột nam/quy/thang
+    dimensions:
+      nam: nam
+      quy: quy
+      thang: thang
+      chi_nhanh: chi_nhanh
+      nhom_hang: nhom_hang
+      san_pham: san_pham
+      loai_khach_hang: loai_khach_hang
+      khach_hang: khach_hang
+
+metrics:
+  doanh_thu_thuan:
+    label: Doanh thu thuần
+    source: sales
+    sql: "SUM(doanh_thu_thuan)"
+    format: money
+    additive: true
+    description: "Doanh thu sau chiết khấu thương mại (= Thành tiền gộp − Chiết khấu)."
+    synonyms: ["doanh thu thuan", "doanh thu", "doanh so", "revenue", "ban duoc bao nhieu"]
+    related: [bien_loi_nhuan_gop, ty_le_dat_kpi, thuc_thu, ty_le_chiet_khau]
+    actions:
+      bad: "Làm rõ nguyên nhân sụt giảm doanh thu tại {worst}: sản lượng, giá bán hay mất khách hàng lớn."
+      warn: "Theo dõi sát doanh thu {worst} trong kỳ tới và đối chiếu với kế hoạch bán hàng."
+      good: "Kiểm tra chất lượng tăng trưởng của {best}: đối chiếu biên lợi nhuận gộp và dòng tiền thực thu."
+  doanh_thu_gop:
+    label: Doanh thu gộp (trước CK)
+    source: sales
+    sql: "SUM(thanh_tien_gop)"
+    format: money
+    additive: true
+    synonyms: ["doanh thu gop", "doanh thu truoc chiet khau", "gia tri ban gop"]
+    related: [ty_le_chiet_khau, doanh_thu_thuan]
+  chiet_khau:
+    label: Chiết khấu thương mại
+    source: sales
+    sql: "SUM(chiet_khau)"
+    format: money
+    higher_is_better: false
+    additive: true
+    synonyms: ["chiet khau", "tien chiet khau", "giam gia"]
+    related: [ty_le_chiet_khau, bien_loi_nhuan_gop]
+    actions:
+      bad: "Đối chiếu chương trình chiết khấu của {worst} với chính sách trần; mức vượt phải được phê duyệt trước."
+  ty_le_chiet_khau:
+    label: Tỷ lệ chiết khấu
+    source: sales
+    sql: "SUM(chiet_khau) * 1.0 / NULLIF(SUM(thanh_tien_gop), 0)"
+    format: pct
+    higher_is_better: false
+    assess: {good: 0.06, warn: 0.08}
+    synonyms: ["ty le chiet khau", "% chiet khau", "muc chiet khau"]
+    related: [bien_loi_nhuan_gop, doanh_thu_thuan]
+    actions:
+      bad: "Dừng hoặc điều chỉnh chương trình chiết khấu tại {worst}; mọi mức vượt trần chính sách phải được phê duyệt trước."
+      warn: "Đánh giá hiệu quả chiết khấu tại {worst}: sản lượng tăng thêm có bù được phần biên lợi nhuận bị mất không."
+  gia_von:
+    label: Giá vốn hàng bán
+    source: sales
+    sql: "SUM(gia_von)"
+    format: money
+    higher_is_better: false
+    additive: true
+    synonyms: ["gia von", "cogs"]
+    related: [bien_loi_nhuan_gop]
+  loi_nhuan_gop:
+    label: Lợi nhuận gộp
+    source: sales
+    sql: "SUM(doanh_thu_thuan - gia_von)"
+    format: money
+    additive: true
+    synonyms: ["loi nhuan gop", "lai gop", "gross profit"]
+    related: [bien_loi_nhuan_gop, loi_nhuan_thuan]
+    actions:
+      bad: "Phân tích lợi nhuận gộp {worst} theo nhóm hàng để tách tác động giá bán, chiết khấu và cơ cấu sản phẩm."
+  bien_loi_nhuan_gop:
+    label: Biên lợi nhuận gộp
+    source: sales
+    sql: "SUM(doanh_thu_thuan - gia_von) * 1.0 / NULLIF(SUM(doanh_thu_thuan), 0)"
+    format: pct
+    assess: {good: 0.21, warn: 0.19}
+    synonyms: ["bien loi nhuan gop", "bien lai gop", "ty suat loi nhuan gop", "gross margin", "bien loi nhuan"]
+    related: [ty_le_chiet_khau, doanh_thu_thuan, loi_nhuan_thuan]
+    actions:
+      bad: "Rà soát giá bán, chiết khấu và cơ cấu sản phẩm tại {worst} để khôi phục biên lợi nhuận gộp."
+      warn: "Theo dõi biên lợi nhuận gộp {worst}; ưu tiên nhóm hàng có biên cao trong kế hoạch bán."
+  san_luong:
+    label: Sản lượng (thùng)
+    source: sales
+    sql: "SUM(so_luong)"
+    format: qty
+    additive: true
+    synonyms: ["san luong", "so luong ban", "so thung"]
+    related: [doanh_thu_thuan]

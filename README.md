@@ -4,6 +4,7 @@
 
 **Dashboard quản trị và Trợ lý Phân tích dùng chung một lớp ngữ nghĩa: Nhanh, Chính xác, Không bịa số liệu (Zero Hallucination)**
 
+[![Live Demo](https://img.shields.io/badge/🚀_Trải_Nghiệm_Live_Demo-Click_Here-2ea44f?style=for-the-badge)](https://ai4bi-demo.onrender.com/?mode=qtd&month=9)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Enterprise Inquiry](https://img.shields.io/badge/🏢_Tư_Vấn_Triển_Khai_B2B-Liên_Hệ_Ngay-ff69b4?style=for-the-badge)](#-phiên-bản-pro--dịch-vụ-triển-khai-doanh-nghiệp-commercial)
 
@@ -52,6 +53,9 @@ Dữ liệu mẫu mô phỏng **công ty phân phối hàng tiêu dùng** (3 chi
 | Trợ lý AI (toàn màn hình) | BOD Deep-Dive (Demo) |
 |---|---|
 | ![](docs/screenshot_descriptive.png) | ![](docs/screenshot_bod.png) |
+
+👉 **Dùng thử trực tiếp trên trình duyệt (không cần cài đặt):** [Mở Live Demo](https://ai4bi-demo.onrender.com/?mode=qtd&month=9)
+> Bản demo chạy trên gói miễn phí: lần mở đầu tiên sau một thời gian không ai dùng có thể mất ~1 phút để khởi động.
 
 
 ---

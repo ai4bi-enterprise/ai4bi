@@ -1,6 +1,17 @@
 # Triển khai Live Demo
 
-## Phương án A — Hugging Face Spaces (miễn phí, khuyên dùng)
+## Phương án A — Render.com (miễn phí, đang dùng cho Live Demo)
+
+1. Đăng ký <https://render.com> bằng tài khoản GitHub.
+2. *New → Web Service → Public Git Repository* → `https://github.com/ai4bi-enterprise/ai4bi`.
+3. Language **Docker**, Region **Singapore**, Compute **Free ($0/month)**.
+4. Environment Variables: `PORT=7860`, `DEMO_RATE_LIMIT_PER_DAY=15`, `CONTACT_URL=<link liên hệ>`
+   (tùy chọn `GEMINI_API_KEY`, `GROQ_API_KEY`, `LLM_PROVIDERS=gemini,groq`).
+5. Bấm **Deploy web service**. Khi push code mới lên GitHub: vào service → *Manual Deploy → Deploy latest commit*.
+
+> Gói Free tự ngủ sau 15 phút không có truy cập; lần mở kế tiếp mất ~1 phút để khởi động. 750 giờ/tháng.
+
+## Phương án A2 — Hugging Face Spaces (Docker Space hiện yêu cầu gói PRO trả phí)
 
 1. Tạo Space mới: **SDK = Docker**, mẫu *Blank*, phần cứng *CPU basic*.
 2. Thêm khối cấu hình vào **đầu** `README.md` của Space:
@@ -35,7 +46,6 @@ cloudflared tunnel --url http://localhost:8000
 - [ ] `.env` không nằm trong commit (`git status` không thấy `.env`).
 - [ ] `pytest -q` xanh (74 ca), `python tools/verify_story.py` báo **ĐẠT**.
 - [ ] `python tools/check_llm.py` báo **ĐẠT** cho từng provider trong `LLM_PROVIDERS` (nếu dùng LLM).
-- [ ] Đã thay `LINK-LIVE-DEMO-CUA-BAN`, email, link liên hệ trong `README.md`.
 - [ ] Ảnh `docs/` đã cập nhật (`python tools/capture_docs.py`).
 - [ ] Đặt email commit dạng `ID+username@users.noreply.github.com` (ẩn email cá nhân).
 - [ ] Topics: `ai4bi, text-to-sql, business-intelligence, semantic-layer, dashboard, fastapi, bi-chatbot`.

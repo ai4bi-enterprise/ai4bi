@@ -10,13 +10,14 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app import config
 from app.chat import engine
-from app.core import db
+from app.core import dataset, db
 from app.core.periods import make
 from app.core.scope import User, current_user, require, users
 from app.core.semantic import SemanticError
@@ -71,7 +72,7 @@ async def timing(request: Request, call_next):
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["X-Frame-Options"] = "DENY"
     resp.headers["Referrer-Policy"] = "same-origin"
-    if request.url.path.startswith("/static/") or request.url.path in ("/", "/login", "/admin/users"):
+    if request.url.path.startswith("/static/") or request.url.path in ("/", "/login", "/admin/users", "/data"):
         resp.headers["Cache-Control"] = "no-cache"  # luôn kiểm ETag -> deploy giao diện mới không bị kẹt bản cũ
     if request.url.path.startswith("/api/"):
         resp.headers["Cache-Control"] = "no-store"  # dữ liệu theo người dùng: không cho CDN/trình duyệt lưu
@@ -83,6 +84,11 @@ async def timing(request: Request, call_next):
 @app.exception_handler(SemanticError)
 async def semantic_error(_: Request, e: SemanticError):
     return JSONResponse(status_code=403, content={"detail": str(e)})
+
+
+@app.exception_handler(dataset.UploadError)
+async def upload_error(_: Request, e: dataset.UploadError):
+    return JSONResponse(status_code=400, content={"detail": str(e)})
 
 
 @app.exception_handler(Exception)
@@ -120,6 +126,8 @@ def meta(user: User = Depends(current_user)):
                  "scope": "Toàn bộ" if user.is_all else ", ".join(o["org_name"] for o in orgs) or "Không có"},
         "demo_users": [{"username": u.username, "display_name": u.display_name, "role": u.role} for u in users().values()]
         if config.AUTH_MODE == "demo" and config.PRO else [],
+        "data": {"upload": dataset.enabled() and (config.AUTH_MODE != "password" or user.is_admin),
+                 "active": dataset.active()},
         "edition": {"name": config.EDITION, "upgrade_url": config.UPGRADE_URL, "contact_url": config.CONTACT_URL},
         "auth": {"mode": config.AUTH_MODE, "email": user.email, "is_admin": user.is_admin,
                  "perm_version": user.perm_version},
@@ -145,6 +153,8 @@ def dashboard(module: str, year: int, month: int, mode: str = "month", region: s
         raise HTTPException(402, "Phân hệ này thuộc bản AI4BI Pro")
     if module not in REGISTRY:
         raise HTTPException(404, "Không có phân hệ này")
+    if not dataset.has_data(module):
+        raise HTTPException(404, "Chưa có dữ liệu cho phân hệ này – nạp thêm ở trang Dữ liệu của tôi")
     require(user, module)
     if mode not in ("month", "quarter", "ytd") or not (1 <= month <= 12):
         raise HTTPException(400, "Kỳ không hợp lệ")
@@ -210,12 +220,75 @@ def welcome(user: User = Depends(current_user)):
     return engine.welcome(user)
 
 
+# ------------------------------------------------------------------ Dữ liệu của tôi (app/core/dataset.py)
+def data_user(user: User = Depends(current_user)) -> User:
+    """Chỉ khi chạy trên máy; bản có đăng nhập thì chỉ quản trị viên được thay dữ liệu."""
+    if not dataset.enabled():
+        raise HTTPException(404, "Chức năng nạp dữ liệu chỉ có khi chạy AI4BI trên máy của bạn")
+    if config.AUTH_MODE == "password" and not user.is_admin:
+        raise HTTPException(403, "Chỉ quản trị viên được nạp dữ liệu")
+    return user
+
+
+@app.get("/api/data/status")
+def data_status(_: User = Depends(data_user)):
+    return {"active": dataset.active(), "mine": dataset.user_info(), "edition": config.EDITION,
+            "modules": [m for m in dataset.MODULE_TABLE if dataset.has_data(m) and m not in config.LOCKED_MODULES],
+            "sheets": [{"name": s.name, "title": s.title, "required": s.required,
+                        "cols": [{"header": c.header, "required": c.required, "note": c.note} for c in s.cols]}
+                       for s in dataset.sheets()]}
+
+
+@app.get("/api/data/template")
+def data_template(_: User = Depends(data_user)):
+    name = f"AI4BI_Mau_Du_Lieu_{config.EDITION.title()}.xlsx"
+    return Response(dataset.template(), headers={"Content-Disposition": f'attachment; filename="{name}"'},
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.post("/api/data/upload")
+async def data_upload(request: Request, _: User = Depends(data_user)):
+    body = await request.body()
+    if not body:
+        raise HTTPException(400, "File rỗng")
+    name = (request.headers.get("x-file-name") or "du_lieu.xlsx")[:200]
+    from urllib.parse import unquote
+    rep, path = await run_in_threadpool(dataset.build, body, unquote(name))
+    log.info("DATA upload %s: ok=%s, %d lỗi, %d cảnh báo", name, rep.ok, len(rep.errors), len(rep.warnings))
+    return {**rep.as_dict(), "can_activate": path is not None}
+
+
+@app.post("/api/data/activate")
+def data_activate(_: User = Depends(data_user)):
+    dataset.activate_staging()
+    return {"ok": True, "active": dataset.active()}
+
+
+@app.post("/api/data/use/{which}")
+def data_use(which: str, _: User = Depends(data_user)):
+    if which not in ("demo", "user"):
+        raise HTTPException(404, "Không có bộ dữ liệu này")
+    dataset.switch(which)
+    return {"ok": True, "active": dataset.active()}
+
+
+@app.delete("/api/data/mine")
+def data_delete(_: User = Depends(data_user)):
+    dataset.delete_user_data()
+    return {"ok": True, "active": dataset.active()}
+
+
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
 @app.get("/")
 def index():
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/data")
+def data_page():
+    return FileResponse(STATIC / "data.html")
 
 
 if config.PRO:

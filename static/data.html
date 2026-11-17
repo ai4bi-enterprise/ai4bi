@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dữ liệu của tôi – AI4BI</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script>try { const t = JSON.parse(localStorage.getItem("ai4bi.theme")); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
+</head>
+<body>
+<div class="admin data-page">
+  <header class="admin-head">
+    <a href="/" class="brand"><img src="/static/favicon.svg" alt="" width="28" height="28"><span class="brand-name">AI4BI</span></a>
+    <h1>Dữ liệu của tôi</h1>
+    <div class="spacer"></div>
+    <a class="link-btn" href="/">← Về dashboard</a>
+  </header>
+
+  <section class="card data-now" id="now"></section>
+
+  <section class="card">
+    <h3><span class="step">1</span> Tải file mẫu và điền dữ liệu</h3>
+    <p class="muted">File Excel có sẵn tiêu đề cột và hướng dẫn. Chỉ sheet <b>BanHang</b> là bắt buộc; cột tiêu đề màu đỏ là bắt buộc.
+      Tiền ghi bằng đồng, ngày dd/mm/yyyy. Không cần dòng tổng cộng.</p>
+    <p><a class="btn-ai" id="tplBtn" href="/api/data/template">⬇ Tải file mẫu Excel</a></p>
+    <details><summary>Xem các sheet và cột</summary><div id="spec"></div></details>
+  </section>
+
+  <section class="card">
+    <h3><span class="step">2</span> Tải file đã điền lên</h3>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".xlsx,.csv" hidden>
+      <b>Kéo thả file vào đây</b> hoặc <u>chọn file</u><br>
+      <span class="muted small">.xlsx theo file mẫu (hoặc .csv chỉ gồm sheet BanHang) · tối đa 30 MB</span>
+    </label>
+    <p class="muted small">Dữ liệu chỉ được lưu trên máy này (thư mục <code>data/user</code>) và không gửi ra ngoài.</p>
+  </section>
+
+  <section class="card" id="result" hidden>
+    <h3><span class="step">3</span> Kết quả kiểm tra</h3>
+    <div id="report"></div>
+  </section>
+  <p class="login-msg" id="msg" role="alert"></p>
+</div>
+<script type="module" src="/static/js/data.js"></script>
+</body>
+</html>

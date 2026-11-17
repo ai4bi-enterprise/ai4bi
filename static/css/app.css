@@ -268,3 +268,18 @@ tr.bold td { font-weight: 700; background: color-mix(in srgb, var(--surface-2) 5
 .kpi-row .stat b { display: block; font-size: 20px; }
 .log-q { max-width: 420px; }
 .log-detail pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: 260px; overflow: auto; }
+
+/* Trang Dữ liệu của tôi */
+.data-page { max-width: 980px; }
+.data-page .card { padding: 18px; display: grid; gap: 8px; }
+.data-page h3 { display: flex; align-items: center; gap: 10px; margin: 0; }
+.data-page h4 { margin: 12px 0 4px; font-size: 14px; }
+.step { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 13px; }
+.drop { display: block; border: 2px dashed var(--border); border-radius: 12px; padding: 28px 16px; text-align: center; cursor: pointer; background: var(--surface-2); }
+.drop.on, .drop:hover { border-color: var(--accent); }
+.data-box { border-radius: 10px; padding: 10px 14px; border: 1px solid var(--border); background: var(--surface-2); }
+.data-box ul { margin: 6px 0 0; padding-left: 20px; }
+.data-box.bad { border-color: var(--bad-text); } .data-box.warn { border-color: var(--warn-text); } .data-box.good { border-color: var(--good-text); }
+.data-now-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.data-hint { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: space-between; padding: 10px 14px; margin-bottom: 12px;
+  border: 1px dashed var(--accent); border-radius: var(--radius); background: var(--surface); }

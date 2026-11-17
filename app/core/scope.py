@@ -36,7 +36,10 @@ class User:
     def can(self, module: str) -> bool:
         if module in config.LOCKED_MODULES:  # bản Lite: phân hệ Pro không có
             return False
-        return module in self.modules or "*" in self.modules
+        if not (module in self.modules or "*" in self.modules):
+            return False
+        from app.core.dataset import has_data   # phân hệ chưa có dữ liệu (khách mới nạp 1 phần) -> ẩn
+        return has_data(module)
 
 
 @lru_cache(maxsize=1)

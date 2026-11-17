@@ -7,3 +7,6 @@ __pycache__/
 !.env.example
 data/raw/
 *.log
+
+# Dữ liệu bạn nạp trên máy (Dữ liệu của tôi) – không bao giờ commit
+data/user/

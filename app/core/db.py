@@ -13,7 +13,8 @@ log = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def engine():
-    url = config.DATABASE_URL
+    from app.core import dataset   # khách nạp dữ liệu của mình trên máy -> đọc CSDL đó (app/core/dataset.py)
+    url = dataset.database_url()
     for prefix in ("postgres://", "postgresql://"):  # Neon cấp URL không ghi driver
         if url.startswith(prefix):
             url = "postgresql+psycopg2://" + url.removeprefix(prefix)

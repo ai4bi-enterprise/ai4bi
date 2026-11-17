@@ -5,7 +5,6 @@ import os
 import time
 from collections import OrderedDict
 
-from app import config
 from app.core import db
 
 
@@ -17,7 +16,8 @@ class ResultCache:
 
     @staticmethod
     def version() -> str:
-        url = config.DATABASE_URL
+        from app.core import dataset
+        url = dataset.database_url()
         if url.startswith("sqlite:///"):
             path = url.removeprefix("sqlite:///")
             return str(os.path.getmtime(path)) if os.path.exists(path) else "0"

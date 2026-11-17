@@ -62,10 +62,10 @@ orders:
   better: up
   synonyms: [số đơn, đơn hàng, số đơn hàng]
 active_customers:
-  label: Đại lý phát sinh doanh thu
+  label: Khách hàng phát sinh doanh thu
   domain: sales
   source: sales
-  sql: COUNT(DISTINCT CASE WHEN t.channel = 'Đại lý' THEN t.customer_code END)
+  sql: COUNT(DISTINCT t.customer_code)
   format: number
   better: up
   synonyms: [số đại lý, số khách hàng, khách hàng hoạt động, đại lý hoạt động]

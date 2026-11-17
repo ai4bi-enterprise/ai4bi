@@ -129,8 +129,15 @@ def validate(part: dict, user: User) -> tuple[dict, list[str]]:
         if pro:  # bản Lite: lời mời nâng cấp thay cho báo thiếu quyền
             notes.append("🔒 " + ", ".join(lab(k) for k in pro) + " thuộc bản **AI4BI Pro** "
                          f"(Kết quả kinh doanh, Bảng cân đối, Lưu chuyển tiền, Tồn kho). Xem: {config.UPGRADE_URL}")
-        if len(pro) < len(denied):
-            notes.append("Bạn chưa được cấp quyền xem: " + ", ".join(lab(k) for k in denied if k not in pro))
+        from app.core.dataset import has_data
+        mod_of = lambda k: _module_of(k) if k in m["metrics"] else k.split(".")[0]  # noqa: E731
+        nodata = [k for k in denied if k not in pro and not has_data(mod_of(k))]
+        if nodata:  # khách mới nạp một phần dữ liệu: nói rõ thiếu gì, không nói "chưa được cấp quyền"
+            notes.append("Chưa có dữ liệu cho: " + ", ".join(lab(k) for k in nodata)
+                         + ". Nạp thêm sheet tương ứng ở trang Dữ liệu của tôi.")
+        rest = [k for k in denied if k not in pro and k not in nodata]
+        if rest:
+            notes.append("Bạn chưa được cấp quyền xem: " + ", ".join(lab(k) for k in rest))
         part["metrics"] = [k for k in part["metrics"] if k not in denied]
     return part, notes
 
@@ -433,7 +440,8 @@ def suggestions(parts: list[dict], user: User) -> list[str]:
                 s.append(f"Diễn biến {lab} 12 tháng gần nhất")
             if p["intent"] not in ("breakdown", "rank") and metric(k).get("source") == "sales":
                 s.append(f"{metric(k)['label']} theo khu vực và mức đạt kế hoạch")
-    base = {"sales": "Top 10 đại lý doanh thu cao nhất quý này", "pnl": "Vì sao lợi nhuận sau thuế thay đổi?",
+    fc = db.meta().get("focus_channel")
+    base = {"sales": f"Top 10 {fc.lower() if fc else 'khách hàng'} doanh thu cao nhất quý này", "pnl": "Vì sao lợi nhuận sau thuế thay đổi?",
             "bs": "Phân rã ROE theo DuPont", "cashflow": "Tiền trong kỳ tăng giảm vì những khoản nào?",
             "inventory": "Hàng nào chậm luân chuyển?"}
     s += [q for mod, q in base.items() if user.can(mod)]

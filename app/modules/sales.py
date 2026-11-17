@@ -1,7 +1,7 @@
 """Phân hệ KINH DOANH – doanh thu, kế hoạch, kênh, ngành hàng, khách hàng, sản phẩm."""
 from __future__ import annotations
 
-from app.core import fmt
+from app.core import db, fmt
 from app.core.periods import Period
 from app.core.scope import User
 from app.core.semantic import Query, run, total
@@ -37,15 +37,32 @@ def plan_by(period: Period, user: User, filters: dict, by: str | None) -> dict:
     return out
 
 
+def focus() -> tuple[str | None, dict]:
+    """Kênh trọng tâm (bi_meta.focus_channel, VD 'Đại lý') dùng để đếm / xếp hạng khách hàng; không khai = mọi kênh."""
+    fc = db.meta().get("focus_channel")
+    return fc, ({"channel": [fc]} if fc else {})
+
+
+def plan_scope(period: Period, user: User, filters: dict) -> str:
+    """Nhãn phạm vi kế hoạch: '' khi mọi kênh có kế hoạch, ' (kênh A, B)' khi chỉ một số kênh được giao."""
+    pl = {r["channel"] for r in run(Query(["plan_revenue"], ["channel"], period, filters), user).rows if r.get("plan_revenue")}
+    ch = {r["channel"] for r in run(Query(["net_revenue"], ["channel"], period, filters), user).rows}
+    return f" (kênh {', '.join(sorted(pl))})" if pl and ch - pl else ""
+
+
 def build(period: Period, user: User, filters: dict) -> dict:
-    keys = ["net_revenue", "sales_gross_profit", "sales_margin", "orders", "active_customers",
+    keys = ["net_revenue", "sales_gross_profit", "sales_margin", "orders",
             "avg_order_value", "discount_rate", "quantity"]
     cur = total(keys, period, user, filters)
     yoy = total(keys, period.yoy(), user, filters)
     prv = total(keys, period.prev(), user, filters)
+    fc, ff = focus()
+    cust = total(["active_customers"], period, user, {**filters, **ff})["active_customers"]
+    cust_ly = total(["active_customers"], period.yoy(), user, {**filters, **ff})["active_customers"]
+    pscope = plan_scope(Period(period.year, 1, 12, "ytd"), user, filters)
     pl = plan_by(period, user, filters, None).get("_all", {"actual": 0, "plan": 0, "ratio": None})
     tone, status = plan_status(pl["ratio"])
-    plan_kpi = {"key": "plan_attainment", "label": "% Kế hoạch (kênh Đại lý)", "value": pl["ratio"], "format": "pct",
+    plan_kpi = {"key": "plan_attainment", "label": f"% Kế hoạch{pscope}", "value": pl["ratio"], "format": "pct",
                 "display": fmt.pct(pl["ratio"]), "tone": tone, "sub": f"{status} · KH {fmt.money(pl['plan'])}",
                 "compares": [], "ask": "Đơn vị nào chưa đạt kế hoạch doanh thu?"}
     kpis = [
@@ -57,8 +74,8 @@ def build(period: Period, user: User, filters: dict) -> dict:
             [compare("sales_gross_profit", cur["sales_gross_profit"], yoy["sales_gross_profit"], "Cùng kỳ")],
             sub=f"Biên {fmt.pct(cur['sales_margin'])}"),
         kpi("orders", cur["orders"], [compare("orders", cur["orders"], yoy["orders"], "Cùng kỳ")]),
-        kpi("active_customers", cur["active_customers"],
-            [compare("active_customers", cur["active_customers"], yoy["active_customers"], "Cùng kỳ")]),
+        kpi("active_customers", cust, [compare("active_customers", cust, cust_ly, "Cùng kỳ")],
+            label=f"{fc} phát sinh doanh thu" if fc else None),
         kpi("avg_order_value", cur["avg_order_value"],
             [compare("avg_order_value", cur["avg_order_value"], yoy["avg_order_value"], "Cùng kỳ")]),
     ]
@@ -73,7 +90,7 @@ def build(period: Period, user: User, filters: dict) -> dict:
     blocks.append(chart("trend", f"Doanh thu theo tháng {period.year} so với {period.year - 1}", "combo", month_labels(yms), [
         series(f"Năm {period.year}", [cur_m.get(m, {}).get("net_revenue") for m in yms], "bar"),
         series(f"Năm {period.year - 1}", [ly_m.get(m - 100, {}).get("net_revenue") for m in yms], "line", color="muted"),
-        series("Kế hoạch kênh Đại lý", [pl_m.get(m, {}).get("plan_revenue") for m in yms], "line", color="plan"),
+        series(f"Kế hoạch{pscope}", [pl_m.get(m, {}).get("plan_revenue") for m in yms], "line", color="plan"),
     ], ask="Xu hướng doanh thu theo tháng năm nay so với năm trước", width="full"))
 
     # bảng điểm đơn vị
@@ -92,9 +109,9 @@ def build(period: Period, user: User, filters: dict) -> dict:
     blocks.append(table("by_org", "Bảng điểm đơn vị", [
         col("region", "Khu vực"), col("org", "Đơn vị"), col("revenue", "Doanh thu", "money"),
         col("growth", "So cùng kỳ", "signed_pct", True), col("margin", "Biên lãi gộp", "pct"),
-        col("plan", "KH Đại lý", "money"), col("ratio", "% KH", "pct"), col("status", "Đánh giá", "badge", True),
+        col("plan", "Kế hoạch", "money"), col("ratio", "% KH", "pct"), col("status", "Đánh giá", "badge", True),
     ], rows, ask="Đơn vị nào chưa đạt kế hoạch và vì sao?", width="full",
-        note="% KH so doanh thu kênh Đại lý với kế hoạch kênh Đại lý (kênh Online chưa giao kế hoạch)."))
+        note=f"% KH chỉ so doanh thu của các kênh được giao kế hoạch{pscope}." if pscope else None))
     misses = [r for r in rows if r["ratio"] is not None and r["ratio"] < 0.95]
     if misses:
         w = min(misses, key=lambda r: r["ratio"])
@@ -130,18 +147,19 @@ def build(period: Period, user: User, filters: dict) -> dict:
     blocks.append(chart("by_channel", "Doanh thu theo kênh", "bar", [r["channel"] for r in ch_cur], [
         series("Kỳ này", [r["net_revenue"] for r in ch_cur]),
         series("Cùng kỳ", [ch_yoy.get(r["channel"]) for r in ch_cur], color="muted"),
-    ], ask="So sánh doanh thu kênh Đại lý và Online"))
+    ], ask="So sánh doanh thu theo kênh"))
 
     # top đại lý, top sản phẩm
-    cus = run(Query(["net_revenue"], ["customer"], period, {**filters, "channel": ["Đại lý"]}), user).rows
+    who = fc.lower() if fc else "khách hàng"
+    cus = run(Query(["net_revenue"], ["customer"], period, {**filters, **ff}), user).rows
     cus = sorted(cus, key=lambda r: -(r["net_revenue"] or 0))[:10]
-    blocks.append(chart("top_customers", "Top 10 đại lý theo doanh thu", "hbar", [r["customer"] for r in cus],
-                        [series("Doanh thu", [r["net_revenue"] for r in cus])], ask="Top 10 đại lý doanh thu cao nhất"))
+    blocks.append(chart("top_customers", f"Top 10 {who} theo doanh thu", "hbar", [r["customer"] for r in cus],
+                        [series("Doanh thu", [r["net_revenue"] for r in cus])], ask=f"Top 10 {who} doanh thu cao nhất"))
     tot = cur["net_revenue"] or 0
     if cus and tot:
         share = sum(r["net_revenue"] for r in cus) / tot
         insights.append({"level": "warn" if share > 0.4 else "info",
-                         "text": f"Top 10 đại lý chiếm {fmt.pct(share)} doanh thu – "
+                         "text": f"Top 10 {who} chiếm {fmt.pct(share)} doanh thu – "
                                  f"{'mức tập trung cao, cần theo dõi rủi ro khách hàng lớn' if share > 0.4 else 'mức tập trung chấp nhận được'}."})
     prod = run(Query(["net_revenue", "sales_margin", "quantity"], ["product"], period, filters), user).rows
     prod = sorted(prod, key=lambda r: -(r["net_revenue"] or 0))[:10]

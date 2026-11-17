@@ -78,7 +78,8 @@ async function loadMeta() {
     g.items.map((i) => i.locked
       ? `<a class="nav-item locked" href="${esc(S.meta.edition.upgrade_url)}" target="_blank" rel="noopener" title="Có ở bản AI4BI Pro"><span class="nav-ico">${ICONS[i.icon] || "•"}</span>${esc(i.label)}<span class="pro-tag">🔒 PRO</span></a>`
       : `<a class="nav-item" href="#/${i.key}" data-key="${i.key}"><span class="nav-ico">${ICONS[i.icon] || "•"}</span>${esc(i.label)}</a>`).join("")).join("") +
-    (S.meta.can_chat ? `<div class="nav-group">Trợ lý AI</div><a class="nav-item" href="#/chat" data-key="chat"><span class="nav-ico">✦</span>Hỏi đáp dữ liệu</a>` : "");
+    (S.meta.can_chat ? `<div class="nav-group">Trợ lý AI</div><a class="nav-item" href="#/chat" data-key="chat"><span class="nav-ico">✦</span>Hỏi đáp dữ liệu</a>` : "") +
+    (S.meta.data?.upload ? `<div class="nav-group">Dữ liệu</div><a class="nav-item" href="/data"><span class="nav-ico">⬆</span>Dữ liệu của tôi${S.meta.data.active === "user" ? "" : '<span class="pro-tag">MẪU</span>'}</a>` : "");
   $("#chatToggle").hidden = !S.meta.can_chat;
   S.items = items.filter((i) => !i.locked);
   const lite = S.meta.edition?.name === "lite";
@@ -90,6 +91,8 @@ async function loadMeta() {
   }
   // kỳ
   const { latest, first } = S.meta;
+  const dataKey = `${S.meta.data?.active || "demo"}|${S.meta.source}`;   // đổi bộ dữ liệu -> về kỳ mới nhất của bộ mới
+  if (store.get("dataKey", null) !== dataKey) { S.period = null; store.set("dataKey", dataKey); }
   if (!S.period || S.period.year * 100 + S.period.month > latest.year * 100 + latest.month) S.period = { ...latest, mode: "quarter" };
   $("#yearSel").innerHTML = Array.from({ length: latest.year - first.year + 1 }, (_, i) => latest.year - i).map((y) => `<option>${y}</option>`).join("");
   // đơn vị (đã lọc theo phạm vi ở backend)
@@ -152,11 +155,14 @@ async function renderDashboard(module) {
       <span class="chip">${esc(d.period.label)}</span>
       ${item?.org_filter && S.org ? `<span class="chip">${esc(S.org.split(":")[1])}</span>` : ""}
       <span class="muted small">Dữ liệu đến ${esc(new Date(S.meta.as_of).toLocaleDateString("vi-VN"))}</span></div>`;
+    if (S.meta.data?.upload && S.meta.data.active !== "user")   // đang xem số mẫu: mời nạp dữ liệu thật
+      el.insertAdjacentHTML("beforeend", `<div class="data-hint"><span>Đang xem <b>dữ liệu mẫu</b>. Muốn xem số của doanh nghiệp bạn?</span>
+        <a class="btn-ai" href="/data">Nạp dữ liệu của tôi</a></div>`);
     if (d.kpis.length) el.append(kpiGrid(d.kpis));
     if (d.insights.length) el.append(insightsCard(d.insights));
     el.append(blocksGrid(d.blocks));
     el.insertAdjacentHTML("beforeend", `<div class="foot">${d.notes.map((n) => `ⓘ ${esc(n)}<br>`).join("")}
-      Nguồn dữ liệu mẫu: ${esc(S.meta.source)}. ${esc(S.meta.note)}</div>`);
+      Nguồn dữ liệu${S.meta.data?.active === "user" ? "" : " mẫu"}: ${esc(S.meta.source)}. ${esc(S.meta.note)}</div>`);
   } catch (e) {
     el.innerHTML = `<div class="error">${esc(e.message)}</div>`;
   }

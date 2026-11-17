@@ -333,7 +333,7 @@ def build(raw: str, out: str) -> None:
     # ---- siêu dữ liệu
     meta = {
         "company_name": "Công ty AI Mỗi Ngày", "currency": "VND", "as_of_date": "2026-09-30",
-        "last_closed_month": "2026-09", "source": "Microsoft AdventureWorks DW (MIT) – github.com/microsoft/sql-server-samples",
+        "last_closed_month": "2026-09", "focus_channel": "Đại lý", "source": "Microsoft AdventureWorks DW (MIT) – github.com/microsoft/sql-server-samples",
         "transform_note": (f"Dữ liệu mẫu 01/2011–09/2013 dịch +{SHIFT_YEARS} năm; tiền địa phương quy USD theo tỷ giá tháng "
                            f"của nguồn; 1 USD = {USD_VND:,} VND (minh hoạ); kế hoạch doanh thu = chỉ tiêu quý kênh Đại lý "
                            "chia đều 3 tháng; kế hoạch P&L chỉ có cho năm 2024; lưu chuyển tiền tệ lập gián tiếp từ BS + P&L."),

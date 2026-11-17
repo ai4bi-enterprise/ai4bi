@@ -1,0 +1,9 @@
+# AI4BI Lite: một người dùng mặc định, thấy toàn bộ dữ liệu mẫu, không cần đăng nhập.
+# Đăng nhập nhiều tài khoản, phân quyền theo vai trò (RBAC) và theo đơn vị (Row-Level Security) có ở bản AI4BI Pro.
+default_user: ceo
+users:
+  ceo:
+    display_name: Người dùng demo
+    role: Ban điều hành
+    scope: "*"
+    modules: ["*"]

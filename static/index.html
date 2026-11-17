@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI4BI – AI Mỗi Ngày</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/vendor/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <img src="/static/favicon.svg" alt="" width="32" height="32">
+      <div><div class="brand-name" id="brandName">AI Mỗi Ngày</div><div class="brand-sub">AI4BI · Dashboard + Trợ lý AI <span class="edition-tag" id="editionTag" hidden>LITE</span></div></div>
+    </div>
+    <nav id="menu"></nav>
+    <div class="upgrade" id="upgrade" hidden>
+      <b>Mở khoá AI4BI Pro</b>
+      <span>P&amp;L, Bảng cân đối, Dòng tiền, Tồn kho, đăng nhập &amp; phân quyền, kết nối Postgres/SQL Server.</span>
+      <a class="btn-ai" id="upgradePro" target="_blank" rel="noopener">Xem bản Pro</a>
+      <a class="link-btn" id="upgradeDemo" target="_blank" rel="noopener">Đặt lịch demo 1-1</a>
+    </div>
+    <div class="side-foot">
+      <div class="who" id="who"></div>
+      <label class="field" id="userSelWrap">
+        <span>Xem với vai trò (demo)</span>
+        <select id="userSel"></select>
+      </label>
+      <div class="acct" id="acct" hidden>
+        <a class="link-btn" href="/admin/users" id="adminLink" hidden>Quản trị người dùng</a>
+        <button class="link-btn" type="button" id="pwBtn">Đổi mật khẩu</button>
+        <button class="link-btn" type="button" id="logoutBtn">Đăng xuất</button>
+        <button class="link-btn" type="button" id="logoutAllBtn">Đăng xuất mọi thiết bị</button>
+      </div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn only-mobile" id="menuBtn" aria-label="Mở menu">☰</button>
+      <div class="seg" id="modeSeg" role="tablist" aria-label="Chế độ kỳ">
+        <button data-mode="month">Tháng</button><button data-mode="quarter">Quý</button><button data-mode="ytd">Lũy kế năm</button>
+      </div>
+      <select id="yearSel" aria-label="Năm"></select>
+      <select id="monthSel" aria-label="Tháng"></select>
+      <select id="orgSel" aria-label="Đơn vị"></select>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" aria-label="Đổi giao diện sáng/tối" title="Sáng / tối">◐</button>
+      <button class="btn-ai" id="chatToggle">✦ Hỏi AI</button>
+    </header>
+
+    <section class="content" id="content"></section>
+  </main>
+
+  <aside class="chat-drawer" id="chatDrawer" aria-label="Trợ lý AI">
+    <div class="chat-head">
+      <div><b>✦ Trợ lý AI</b><div class="muted small" id="chatCtx"></div></div>
+      <div>
+        <a class="icon-btn" href="#/chat" title="Mở toàn màn hình">⤢</a>
+        <button class="icon-btn" id="chatClose" aria-label="Đóng">✕</button>
+      </div>
+    </div>
+    <div class="chat-body" id="chatBodyDrawer"></div>
+    <form class="chat-input" id="chatFormDrawer">
+      <textarea rows="1" placeholder="Hỏi về doanh thu, lợi nhuận, dòng tiền, tồn kho…" maxlength="500"></textarea>
+      <button type="submit" aria-label="Gửi">➤</button>
+    </form>
+  </aside>
+</div>
+<dialog class="dlg" id="pwDialog">
+  <form method="dialog" id="pwForm" novalidate>
+    <h2>Đổi mật khẩu</h2>
+    <label class="field"><span>Mật khẩu hiện tại</span><input type="password" name="current_password" autocomplete="current-password" required></label>
+    <label class="field"><span>Mật khẩu mới (ít nhất 10 ký tự)</span><input type="password" name="new_password" autocomplete="new-password" required></label>
+    <label class="field"><span>Nhập lại mật khẩu mới</span><input type="password" name="confirm" autocomplete="new-password" required></label>
+    <p class="muted small">Sau khi đổi, các thiết bị khác sẽ phải đăng nhập lại.</p>
+    <p class="login-msg" id="pwMsg" role="alert"></p>
+    <div class="dlg-actions"><button class="link-btn" value="cancel" formnovalidate>Huỷ</button><button class="btn-ai" value="ok">Lưu</button></div>
+  </form>
+</dialog>
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

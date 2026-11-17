@@ -1,25 +1,9 @@
-# Bí mật
-.env
-*.env.local
-
-# Python
-__pycache__/
-*.py[cod]
-.pytest_cache/
 .venv/
 venv/
-*.egg-info/
-
-# Hệ điều hành / IDE
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# Dữ liệu rác (giữ lại DB mẫu chính thức)
-*.db-journal
-*.db-wal
-*.db-shm
-sample_data/*.db
-!sample_data/enterprise_sample.db
-logs/
+__pycache__/
+.pytest_cache/
+.env
+.env.*
+!.env.example
+data/raw/
+*.log

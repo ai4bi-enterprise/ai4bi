@@ -1,132 +1,86 @@
-"""Cấu hình đọc từ biến môi trường / file .env (không hard-code bí mật trong code)."""
+"""Nơi DUY NHẤT đọc biến môi trường (Blueprint 10.2: env.py)."""
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
+load_dotenv(ROOT / ".env.local")  # do `neon init` / `neon env pull` sinh ra; .env thắng nếu trùng khoá
 
-# ---------------------------------------------------------------------------
-# Preset nhà cung cấp LLM (API tương thích OpenAI /chat/completions).
-# Đã đối chiếu tài liệu chính thức (11/2026):
-#   - Gemini: base .../v1beta/openai; reasoning_effort ánh xạ sang thinking_level.
-#     Gemini 3.x KHÔNG tắt được thinking -> dùng "low" (mức thấp nhất được mọi dòng 3.x hỗ trợ).
-#   - Groq: base api.groq.com/openai/v1; gpt-oss-20b/120b nhận reasoning_effort low|medium|high,
-#     hỗ trợ JSON Object Mode. Free plan ~30 RPM, 1K RPD, 8K TPM / tổ chức.
-# Model ID thực tế luôn phải kiểm tra bằng: python tools/check_llm.py  (gọi /models của chính provider)
-# ---------------------------------------------------------------------------
-PROVIDER_PRESETS: dict[str, dict] = {
-    "gemini": {"label": "Google Gemini", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
-               "model": "gemini-3.8-flash", "key_env": "GEMINI_API_KEY", "reasoning_effort": "low",
-               "json_mode": False, "max_tokens": 2048, "free": True},
-    "groq": {"label": "Groq", "base_url": "https://api.groq.com/openai/v1",
-             "model": "openai/gpt-oss-20b", "key_env": "GROQ_API_KEY", "reasoning_effort": "low",
-             "json_mode": True, "max_tokens": 1024, "free": True},
-    "openrouter": {"label": "OpenRouter", "base_url": "https://openrouter.ai/api/v1",
-                   "model": "", "key_env": "OPENROUTER_API_KEY", "reasoning_effort": "", "json_mode": False,
-                   "free": True},
-    "openai": {"label": "OpenAI", "base_url": "https://api.openai.com/v1",
-               "model": "gpt-4o-mini", "key_env": "OPENAI_API_KEY", "reasoning_effort": "", "json_mode": True,
-               "free": False},
-    "ollama": {"label": "Ollama (local)", "base_url": "http://localhost:11434/v1",
-               "model": "", "key_env": "", "reasoning_effort": "", "json_mode": False, "free": True},
-}
+# Phiên bản: pro = repo private đầy đủ; lite = bản công khai (tools/export_lite.py lọc bỏ file Pro).
+# Tự nhận theo việc có file Pro hay không; AI4BI_EDITION=lite để chạy thử bản Lite ngay trong repo Pro.
+EDITION = os.getenv("AI4BI_EDITION", "").lower() or ("pro" if (ROOT / "app" / "core" / "auth.py").exists() else "lite")
+if EDITION not in ("pro", "lite"):
+    raise RuntimeError(f"AI4BI_EDITION không hợp lệ: {EDITION}")
+PRO = EDITION == "pro"
+PRO_MODULES = ("pnl", "bs", "cashflow", "inventory")  # phân hệ chỉ có ở bản Pro
+LOCKED_MODULES = () if PRO else PRO_MODULES          # bản Lite: hiện trên menu kèm nhãn 🔒 PRO
+UPGRADE_URL = os.getenv("UPGRADE_URL", "https://github.com/ai4bi-enterprise/ai4bi#-so-sánh-phiên-bản")
+CONTACT_URL = os.getenv("CONTACT_URL", "https://calendly.com/ai4bi-contact/demo")
 
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{(ROOT / 'data' / 'aimoingay_demo.db').as_posix()}")
+SEMANTIC_DIR = Path(os.getenv("SEMANTIC_DIR", ROOT / "app" / "semantic"))
+USERS_FILE = Path(os.getenv("USERS_FILE", ROOT / "config" / "users.yaml"))
+COMPANY_NAME = os.getenv("COMPANY_NAME", "")  # để trống = lấy từ bi_meta
 
-@dataclass(frozen=True)
-class LLMProvider:
-    name: str
-    label: str
-    base_url: str
-    model: str
-    api_key: str
-    reasoning_effort: str      # "" = không gửi tham số
-    json_mode: bool
-    timeout: float
-    max_tokens: int = 2048
+# LLM (tuỳ chọn). Không có khoá -> chatbot dùng bộ hiểu câu theo luật, vẫn trả lời đúng số.
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")     # Blueprint 5: Anthropic -> OpenAI -> Gemini
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")     # khoá nhập trên trang quản trị được ưu tiên hơn biến môi trường
+LLM_ENABLED = os.getenv("LLM_ENABLED", "auto")  # auto | on | off
+LLM_MODEL = os.getenv("LLM_MODEL", "claude-opus-5-5")
+LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "60"))
+LLM_NARRATIVE = os.getenv("LLM_NARRATIVE", "true").lower() == "true"
+# Khoá LLM nhập trên trang quản trị (Blueprint 14.5) được mã hoá bằng khoá này trước khi lưu vào sec.llm_providers.
+# Blueprint dùng DPAPI (Windows); bản chạy Vercel/Linux dùng Fernet với secret riêng. Thiếu = không lưu được khoá.
+LLM_KEY_SECRET = os.getenv("LLM_KEY_SECRET", "")
+LLM_PROVIDER_TIMEOUT = float(os.getenv("LLM_PROVIDER_TIMEOUT", "20"))  # mỗi hãng; hết giờ -> hãng kế tiếp
 
-    @property
-    def tag(self) -> str:
-        return f"{self.name}/{self.model}"
+SQL_ROW_LIMIT = int(os.getenv("SQL_ROW_LIMIT", "5000"))
 
-
-def _env(name: str, default: str = "") -> str:
-    return (os.getenv(name) or default).strip()
+# Đăng nhập (Blueprint 14.1). password = tài khoản + mật khẩu, JWT trong cookie httpOnly (mặc định).
+# demo = chọn vai trò không mật khẩu, chỉ để trình diễn offline trên máy; bị từ chối khi chạy trên Vercel.
+AUTH_MODE = os.getenv("AUTH_MODE", "password").lower() if PRO else "demo"  # Lite: 1 người dùng, không đăng nhập
+SEC_DATABASE_URL = os.getenv("SEC_DATABASE_URL", "")    # login chỉ đọc/ghi schema sec
+ACCESS_SECRET = os.getenv("ACCESS_SECRET", "")          # khoá ký access token
+REFRESH_SECRET = os.getenv("REFRESH_SECRET", "")        # khoá ký refresh token (khác access)
+ACCESS_HOURS = 8
+REFRESH_DAYS = 30
+LOCK_AFTER = 5            # sai mật khẩu liên tiếp
+LOCK_MINUTES = 15
+IP_FAIL_LIMIT = 20        # lần sai trên một IP trong LOCK_MINUTES
+PASSWORD_MIN = 10
 
 
-def _bool(v: str, default: bool) -> bool:
-    return default if v == "" else v.lower() in ("1", "true", "yes", "on")
+def check_auth_config() -> None:
+    """Thiếu secret hoặc secret yếu thì dừng khởi động (Blueprint 14.1)."""
+    if AUTH_MODE == "demo":
+        if PRO and os.getenv("VERCEL"):  # bản Lite chỉ có dữ liệu mẫu nên được chạy Live Demo công khai
+            raise RuntimeError("AUTH_MODE=demo không được dùng khi triển khai")
+        return
+    if AUTH_MODE != "password":
+        raise RuntimeError(f"AUTH_MODE không hợp lệ: {AUTH_MODE}")
+    weak = [n for n, v in (("ACCESS_SECRET", ACCESS_SECRET), ("REFRESH_SECRET", REFRESH_SECRET))
+            if len(v) < 32 or len(set(v)) < 10]
+    if weak:
+        raise RuntimeError(f"Secret thiếu hoặc yếu (cần >= 32 ký tự ngẫu nhiên): {', '.join(weak)}")
+    if ACCESS_SECRET == REFRESH_SECRET:
+        raise RuntimeError("ACCESS_SECRET và REFRESH_SECRET phải khác nhau")
+    if not SEC_DATABASE_URL:
+        raise RuntimeError("Thiếu SEC_DATABASE_URL (CSDL người dùng / phiên)")
 
 
-def _build_provider(name: str, timeout: float, legacy_key: str = "", legacy_model: str = "",
-                    legacy_base: str = "") -> LLMProvider | None:
-    preset = PROVIDER_PRESETS.get(name)
-    up = name.upper()
-    if preset is None:
-        # Nhà cung cấp tùy chỉnh: bắt buộc khai báo <NAME>_BASE_URL và <NAME>_MODEL
-        preset = {"label": name, "base_url": "", "model": "", "key_env": f"{up}_API_KEY",
-                  "reasoning_effort": "", "json_mode": False}
-    key = _env(preset["key_env"]) if preset["key_env"] else ""
-    key = key or legacy_key
-    base = (_env(f"{up}_BASE_URL") or legacy_base or preset["base_url"]).rstrip("/")
-    model = _env(f"{up}_MODEL") or legacy_model or preset["model"]
-    if not base or not model:
-        return None
-    if preset["key_env"] and not key:
-        return None  # không có key => bỏ qua provider này
-    effort = _env(f"{up}_REASONING_EFFORT", preset["reasoning_effort"])
-    effort = "" if effort.lower() in ("", "off", "default") else effort.lower()
-    return LLMProvider(name=name, label=preset["label"], base_url=base, model=model, api_key=key,
-                       reasoning_effort=effort, json_mode=_bool(_env(f"{up}_JSON_MODE"), preset["json_mode"]),
-                       timeout=timeout, max_tokens=int(_env(f"{up}_MAX_TOKENS", str(preset.get("max_tokens", 2048)))))
+check_auth_config()
 
 
-def _db_path(url: str) -> Path:
-    if not url.startswith("sqlite:///"):
-        raise ValueError("Community Edition chỉ hỗ trợ DATABASE_URL dạng sqlite:///<đường dẫn>")
-    p = Path(url[len("sqlite:///"):])
-    return p if p.is_absolute() else (ROOT / p).resolve()
-
-
-@dataclass(frozen=True)
-class Settings:
-    llm_providers: list[LLMProvider] = field(default_factory=list)
-    db_path: Path = ROOT / "sample_data" / "enterprise_sample.db"
-    rate_limit_per_day: int = 0
-    contact_url: str = "https://calendly.com/ai4bi-contact/demo"
-    insights_enabled: bool = True
-
-    @property
-    def llm_enabled(self) -> bool:
-        return bool(self.llm_providers)
-
-
-def load_settings() -> Settings:
-    timeout = float(_env("LLM_TIMEOUT", "15"))
-    providers: list[LLMProvider] = []
-    names = [n.strip().lower() for n in _env("LLM_PROVIDERS").split(",") if n.strip()]
-    if names:
-        for n in names:
-            if n in ("none", "rules"):
-                continue
-            p = _build_provider(n, timeout)
-            if p and all(x.name != p.name for x in providers):
-                providers.append(p)
-    else:
-        # Tương thích ngược: LLM_PROVIDER + LLM_API_KEY + LLM_MODEL (+ LLM_BASE_URL)
-        legacy = _env("LLM_PROVIDER", "none").lower()
-        if legacy not in ("", "none", "rules"):
-            p = _build_provider(legacy, timeout, _env("LLM_API_KEY"), _env("LLM_MODEL"), _env("LLM_BASE_URL"))
-            if p:
-                providers.append(p)
-    return Settings(
-        llm_providers=providers,
-        db_path=_db_path(_env("DATABASE_URL", "sqlite:///./sample_data/enterprise_sample.db")),
-        rate_limit_per_day=int(_env("DEMO_RATE_LIMIT_PER_DAY", "0")),
-        contact_url=_env("CONTACT_URL", "https://calendly.com/ai4bi-contact/demo"),
-        insights_enabled=_bool(_env("INSIGHTS_ENABLED"), True),
-    )
+def llm_on() -> bool:
+    """Bật khi ít nhất một hãng có khoá (trang quản trị sec.llm_providers hoặc biến môi trường)."""
+    if LLM_ENABLED == "off":
+        return False
+    if LLM_ENABLED == "on":
+        return True
+    from app.chat.llm import keys  # nhập muộn: llmkeys -> secdb -> config
+    return keys().has_active()

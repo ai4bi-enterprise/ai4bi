@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+<defs>
+<linearGradient id="amnBg" gradientUnits="userSpaceOnUse" x1="0" y1="200" x2="200" y2="0"><stop offset="0" stop-color="#0B1030"/><stop offset="1" stop-color="#252B6B"/></linearGradient>
+<linearGradient id="amnGold" gradientUnits="userSpaceOnUse" x1="0" y1="200" x2="200" y2="0"><stop offset="0" stop-color="#B8873B"/><stop offset=".45" stop-color="#F6D58E"/><stop offset=".7" stop-color="#E9BC62"/><stop offset="1" stop-color="#FFF1C9"/></linearGradient>
+</defs>
+<circle cx="100" cy="100" r="96" fill="url(#amnBg)"/>
+<circle cx="100" cy="100" r="91" fill="none" stroke="url(#amnGold)" stroke-width="4"/>
+<path fill="none" stroke="url(#amnGold)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" d="M50 100 L72 56 L94 100 M60 84 H84 M134 56 V100 M54 126 Q100 172 146 126"/>
+</svg>

@@ -1,0 +1,43 @@
+# Nguồn logic -> bảng/view vật lý theo hợp đồng dữ liệu.
+# Kết nối khách hàng thật: đổi `table` sang view của họ (VD: bot.vw_revenue_detail) – không sửa code.
+# kind: flow     = số phát sinh, cộng dồn các tháng trong kỳ
+#       snapshot = số dư, chỉ lấy tháng cuối kỳ
+# org_column: cột dùng để áp phạm vi dữ liệu (scope). Không có -> người bị giới hạn phạm vi không thấy nguồn này.
+sales:
+  table: bi_sales
+  kind: flow
+  label: Doanh thu (hoá đơn)
+  org_column: org_code
+sales_plan:
+  table: bi_sales_plan
+  kind: flow
+  label: Kế hoạch doanh thu
+  org_column: org_code
+pnl:
+  table: bi_pnl
+  kind: flow
+  label: P&L quản trị (sổ cái)
+  org_column: org_code
+  line_table: bi_pnl_lines
+cost:
+  table: bi_cost_detail
+  kind: flow
+  label: Chi phí theo tài khoản
+  org_column: org_code
+bs:
+  table: bi_bs
+  kind: snapshot
+  label: Bảng cân đối
+  org_column: org_code
+  line_table: bi_bs_lines
+cashflow:
+  table: bi_cashflow
+  kind: flow
+  label: Lưu chuyển tiền tệ
+  org_column: org_code
+  line_table: bi_cf_lines
+inventory:
+  table: bi_inventory
+  kind: snapshot
+  label: Tồn kho
+  org_column: null

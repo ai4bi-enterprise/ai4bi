@@ -1,0 +1,72 @@
+# Chiều phân tích. `columns`: biểu thức theo từng nguồn (t = bảng nguồn, o = bi_org, l = bảng dòng báo cáo).
+# `join`: org | line. `order`: biểu thức sắp xếp mặc định (thiếu thì sắp theo giá trị chỉ tiêu).
+# `synonyms`: các cách người dùng gọi chiều này (không dấu cũng được) – chatbot dùng để hiểu câu hỏi.
+region:
+  label: Khu vực
+  synonyms: [khu vực, vùng, miền, thị trường, châu lục]
+  join: org
+  order: MIN(o.sort_order)
+  columns: {sales: o.region_name, sales_plan: o.region_name, pnl: o.region_name, cost: o.region_name, bs: o.region_name, cashflow: o.region_name}
+org:
+  label: Đơn vị
+  synonyms: [đơn vị, chi nhánh, công ty con, công ty thành viên, quốc gia, nước]
+  join: org
+  order: MIN(o.sort_order)
+  columns: {sales: o.org_name, sales_plan: o.org_name, pnl: o.org_name, cost: o.org_name, bs: o.org_name, cashflow: o.org_name}
+channel:
+  label: Kênh
+  synonyms: [kênh, kênh bán, kênh phân phối]
+  columns: {sales: t.channel, sales_plan: t.channel}
+category:
+  label: Ngành hàng
+  synonyms: [ngành hàng, nhóm hàng, danh mục, loại sản phẩm, nhóm sản phẩm]
+  columns: {sales: t.category, inventory: t.category}
+subcategory:
+  label: Dòng sản phẩm
+  synonyms: [dòng sản phẩm, nhóm con, phân nhóm]
+  columns: {sales: t.subcategory, inventory: t.subcategory}
+product:
+  label: Sản phẩm
+  synonyms: [sản phẩm, mặt hàng, sku, mã hàng]
+  columns: {sales: t.product_name, inventory: t.product_name}
+customer:
+  label: Khách hàng
+  synonyms: [khách hàng, đại lý, khách]
+  sensitive: true          # tên gửi cho LLM được thay bằng mã tạm (Blueprint P5)
+  columns: {sales: t.customer_name}
+customer_type:
+  label: Loại khách hàng
+  synonyms: [loại khách hàng, nhóm khách hàng, phân khúc khách hàng, loại đại lý]
+  columns: {sales: t.customer_type}
+pnl_line:
+  label: Khoản mục P&L
+  synonyms: [khoản mục, dòng p&l, chỉ tiêu p&l]
+  join: line
+  order: MIN(l.sort_order)
+  columns: {pnl: l.line_name}
+cost_account:
+  label: Tài khoản chi phí
+  synonyms: [tài khoản chi phí, loại chi phí, khoản chi phí, cơ cấu chi phí]
+  columns: {cost: t.account_name}
+bs_line:
+  label: Khoản mục cân đối
+  synonyms: [khoản mục tài sản, cơ cấu tài sản, cơ cấu nguồn vốn]
+  join: line
+  order: MIN(l.sort_order)
+  columns: {bs: l.line_name}
+cf_line:
+  label: Khoản mục lưu chuyển tiền
+  synonyms: [khoản mục dòng tiền, thành phần dòng tiền]
+  join: line
+  order: MIN(l.sort_order)
+  columns: {cashflow: l.line_name}
+month:
+  label: Tháng
+  synonyms: [theo tháng, từng tháng, hàng tháng]
+  time: true
+  columns: {sales: t.year*100+t.month, sales_plan: t.year*100+t.month, pnl: t.year*100+t.month, cost: t.year*100+t.month,
+            bs: t.year*100+t.month, cashflow: t.year*100+t.month, inventory: t.year*100+t.month}
+cost_type:
+  label: Nhóm chi phí
+  synonyms: [nhóm chi phí, loại chi phí lớn]
+  columns: {cost: "CASE t.line_code WHEN 'GIA_VON' THEN 'Giá vốn' WHEN 'CP_BH' THEN 'Chi phí bán hàng' WHEN 'KHAU_HAO' THEN 'Khấu hao' ELSE 'Chi phí quản lý' END"}

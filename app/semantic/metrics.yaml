@@ -1,0 +1,515 @@
+# CHỈ TIÊU – nguồn chân lý duy nhất cho dashboard và chatbot (Blueprint P1, P2).
+# Chỉ tiêu gốc: `source` + `sql` (biểu thức tổng hợp trên cột hợp đồng, t = bảng nguồn); `plan_sql` nếu có kế hoạch.
+# Chỉ tiêu dẫn xuất: `formula` trên các chỉ tiêu khác; biến có sẵn: months (số tháng của kỳ), days (số ngày của kỳ).
+# format: money | pct | number | days | times.  better: up | down (chiều tốt lên, dùng tô màu và đánh giá).
+# assess: ngưỡng đánh giá {good, warn} – vượt good là tốt, giữa warn và good là theo dõi, còn lại là cảnh báo.
+
+# ============================ KINH DOANH (bi_sales)
+net_revenue:
+  label: Doanh thu thuần
+  domain: sales
+  source: sales
+  sql: SUM(t.net_revenue)
+  format: money
+  better: up
+  synonyms: [doanh thu, doanh số, doanh thu thuần, bán hàng, revenue, sales]
+gross_sales:
+  label: Doanh thu trước chiết khấu
+  domain: sales
+  source: sales
+  sql: SUM(t.gross_amount)
+  format: money
+  better: up
+  synonyms: [doanh thu gộp, doanh thu trước chiết khấu]
+discount:
+  label: Chiết khấu
+  domain: sales
+  source: sales
+  sql: SUM(t.discount_amount)
+  format: money
+  better: down
+  synonyms: [chiết khấu, giảm giá, khuyến mãi]
+sales_cogs:
+  label: Giá vốn hàng bán (theo hoá đơn)
+  domain: sales
+  source: sales
+  sql: SUM(t.cogs)
+  format: money
+  better: down
+  synonyms: [giá vốn bán hàng]
+sales_gross_profit:
+  label: Lãi gộp bán hàng
+  domain: sales
+  source: sales
+  sql: SUM(t.net_revenue - t.cogs)
+  format: money
+  better: up
+  synonyms: [lãi gộp bán hàng, lợi nhuận gộp bán hàng, lãi gộp theo sản phẩm]
+quantity:
+  label: Sản lượng
+  domain: sales
+  source: sales
+  sql: SUM(t.quantity)
+  format: number
+  better: up
+  synonyms: [sản lượng, số lượng, số lượng bán, số sản phẩm]
+orders:
+  label: Số đơn hàng
+  domain: sales
+  source: sales
+  sql: COUNT(DISTINCT t.order_no)
+  format: number
+  better: up
+  synonyms: [số đơn, đơn hàng, số đơn hàng]
+active_customers:
+  label: Đại lý phát sinh doanh thu
+  domain: sales
+  source: sales
+  sql: COUNT(DISTINCT CASE WHEN t.channel = 'Đại lý' THEN t.customer_code END)
+  format: number
+  better: up
+  synonyms: [số đại lý, số khách hàng, khách hàng hoạt động, đại lý hoạt động]
+plan_revenue:
+  label: Kế hoạch doanh thu
+  domain: sales
+  source: sales_plan
+  sql: SUM(t.plan_revenue)
+  format: money
+  synonyms: [kế hoạch, kế hoạch doanh thu, chỉ tiêu, kpi, target, aop]
+sales_margin:
+  label: Biên lãi gộp bán hàng
+  domain: sales
+  formula: sales_gross_profit / net_revenue
+  format: pct
+  better: up
+  assess: {good: 0.12, warn: 0.08}
+  synonyms: [biên lãi gộp bán hàng, tỷ suất lãi gộp bán hàng, margin bán hàng]
+discount_rate:
+  label: Tỷ lệ chiết khấu
+  domain: sales
+  formula: discount / gross_sales
+  format: pct
+  better: down
+  assess: {good: 0.01, warn: 0.03}
+  synonyms: [tỷ lệ chiết khấu, tỷ lệ giảm giá]
+avg_order_value:
+  label: Giá trị bình quân / đơn
+  domain: sales
+  formula: net_revenue / orders
+  format: money
+  better: up
+  synonyms: [giá trị đơn hàng, giá trị bình quân đơn, aov]
+
+# ============================ P&L QUẢN TRỊ (bi_pnl, dấu: + thu, - chi)
+pnl_revenue:
+  label: Doanh thu thuần (sổ cái)
+  domain: pnl
+  source: pnl
+  sql: SUM(CASE WHEN t.scenario = 'actual' AND t.line_code IN ('DT_BAN_HANG','DT_NOI_BO','GIAM_TRU') THEN t.amount ELSE 0 END)
+  plan_sql: SUM(CASE WHEN t.scenario = 'plan' AND t.line_code IN ('DT_BAN_HANG','DT_NOI_BO','GIAM_TRU') THEN t.amount ELSE 0 END)
+  format: money
+  better: up
+  synonyms: [doanh thu sổ cái, doanh thu kế toán, doanh thu p&l, doanh thu thuần kế toán]
+pnl_cogs:
+  label: Giá vốn hàng bán
+  domain: pnl
+  source: pnl
+  sql: -SUM(CASE WHEN t.scenario = 'actual' AND t.line_code = 'GIA_VON' THEN t.amount ELSE 0 END)
+  plan_sql: -SUM(CASE WHEN t.scenario = 'plan' AND t.line_code = 'GIA_VON' THEN t.amount ELSE 0 END)
+  format: money
+  better: down
+  synonyms: [giá vốn, giá vốn hàng bán, cogs]
+gross_profit:
+  label: Lợi nhuận gộp
+  domain: pnl
+  source: pnl
+  sql: SUM(CASE WHEN t.scenario = 'actual' AND t.line_code IN ('DT_BAN_HANG','DT_NOI_BO','GIAM_TRU','GIA_VON') THEN t.amount ELSE 0 END)
+  plan_sql: SUM(CASE WHEN t.scenario = 'plan' AND t.line_code IN ('DT_BAN_HANG','DT_NOI_BO','GIAM_TRU','GIA_VON') THEN t.amount ELSE 0 END)
+  format: money
+  better: up
+  synonyms: [lợi nhuận gộp, lãi gộp, gross profit]
+selling_expense:
+  label: Chi phí bán hàng
+  domain: pnl
+  source: pnl
+  sql: -SUM(CASE WHEN t.scenario = 'actual' AND t.line_code = 'CP_BH' THEN t.amount ELSE 0 END)
+  plan_sql: -SUM(CASE WHEN t.scenario = 'plan' AND t.line_code = 'CP_BH' THEN t.amount ELSE 0 END)
+  format: money
+  better: down
+  synonyms: [chi phí bán hàng, cpbh]
+admin_expense:
+  label: Chi phí quản lý doanh nghiệp
+  domain: pnl
+  source: pnl
+  sql: -SUM(CASE WHEN t.scenario = 'actual' AND t.line_code = 'CP_QLDN' THEN t.amount ELSE 0 END)
+  plan_sql: -SUM(CASE WHEN t.scenario = 'plan' AND t.line_code = 'CP_QLDN' THEN t.amount ELSE 0 END)
+  format: money
+  better: down
+  synonyms: [chi phí quản lý, chi phí qldn, qldn, chi phí quản lý doanh nghiệp]
+opex:
+  label: Chi phí hoạt động
+  domain: pnl
+  source: pnl
+  sql: -SUM(CASE WHEN t.scenario = 'actual' AND t.line_code IN ('CP_BH','CP_QLDN','KHAU_HAO') THEN t.amount ELSE 0 END)
+  plan_sql: -SUM(CASE WHEN t.scenario = 'plan' AND t.line_code IN ('CP_BH','CP_QLDN','KHAU_HAO') THEN t.amount ELSE 0 END)
+  format: money
+  better: down
+  synonyms: [chi phí hoạt động, opex, tổng chi phí, chi phí vận hành]
+ebitda:
+  label: EBITDA
+  domain: pnl
+  source: pnl
+  sql: SUM(CASE WHEN t.scenario = 'actual' AND t.line_code IN ('DT_BAN_HANG','DT_NOI_BO','GIAM_TRU','GIA_VON','CP_BH','CP_QLDN') THEN t.amount ELSE 0 END)
+  plan_sql: SUM(CASE WHEN t.scenario = 'plan' AND t.line_code IN ('DT_BAN_HANG','DT_NOI_BO','GIAM_TRU','GIA_VON','CP_BH','CP_QLDN') THEN t.amount ELSE 0 END)
+  format: money
+  better: up
+  synonyms: [ebitda]
+pbt:
+  label: Lợi nhuận trước thuế
+  domain: pnl
+  source: pnl
+  sql: SUM(CASE WHEN t.scenario = 'actual' AND t.line_code <> 'THUE_TNDN' THEN t.amount ELSE 0 END)
+  plan_sql: SUM(CASE WHEN t.scenario = 'plan' AND t.line_code <> 'THUE_TNDN' THEN t.amount ELSE 0 END)
+  format: money
+  better: up
+  synonyms: [lợi nhuận trước thuế, lntt, ebt]
+npat:
+  label: Lợi nhuận sau thuế
+  domain: pnl
+  source: pnl
+  sql: SUM(CASE WHEN t.scenario = 'actual' THEN t.amount ELSE 0 END)
+  plan_sql: SUM(CASE WHEN t.scenario = 'plan' THEN t.amount ELSE 0 END)
+  format: money
+  better: up
+  synonyms: [lợi nhuận, lợi nhuận sau thuế, lnst, lãi ròng, lời, net income, profit]
+pnl_amount:
+  label: Giá trị
+  domain: pnl
+  source: pnl
+  sql: SUM(CASE WHEN t.scenario = 'actual' THEN t.amount ELSE 0 END)
+  plan_sql: SUM(CASE WHEN t.scenario = 'plan' THEN t.amount ELSE 0 END)
+  format: money
+  internal: true
+cost_amount:
+  label: Chi phí
+  domain: pnl
+  source: cost
+  sql: SUM(t.amount)
+  format: money
+  better: down
+  synonyms: [chi phí theo tài khoản, chi tiết chi phí]
+gross_margin:
+  label: Biên lợi nhuận gộp
+  domain: pnl
+  formula: gross_profit / pnl_revenue
+  format: pct
+  better: up
+  assess: {good: 0.65, warn: 0.6}
+  synonyms: [biên lợi nhuận gộp, biên lãi gộp, gross margin, tỷ suất lợi nhuận gộp]
+ebitda_margin:
+  label: Biên EBITDA
+  domain: pnl
+  formula: ebitda / pnl_revenue
+  format: pct
+  better: up
+  assess: {good: 0.25, warn: 0.18}
+  synonyms: [biên ebitda]
+net_margin:
+  label: Biên lợi nhuận ròng
+  domain: pnl
+  formula: npat / pnl_revenue
+  format: pct
+  better: up
+  assess: {good: 0.15, warn: 0.1}
+  synonyms: [biên lợi nhuận ròng, biên lợi nhuận, tỷ suất lợi nhuận, npm, net margin]
+opex_ratio:
+  label: Tỷ lệ chi phí hoạt động / doanh thu
+  domain: pnl
+  formula: opex / pnl_revenue
+  format: pct
+  better: down
+  assess: {good: 0.4, warn: 0.45}
+  synonyms: [tỷ lệ chi phí, chi phí trên doanh thu]
+
+# ============================ BẢNG CÂN ĐỐI (bi_bs, số dư cuối kỳ)
+total_assets:
+  label: Tổng tài sản
+  domain: bs
+  source: bs
+  sql: SUM(CASE WHEN l.grp = 'A' THEN t.amount ELSE 0 END)
+  joins: [line]
+  format: money
+  synonyms: [tổng tài sản, tài sản, total assets]
+cash:
+  label: Tiền và tương đương tiền
+  domain: bs
+  source: bs
+  sql: SUM(CASE WHEN t.line_code = 'TIEN' THEN t.amount ELSE 0 END)
+  format: money
+  better: up
+  synonyms: [tiền, tiền mặt, số dư tiền, tiền và tương đương tiền, cash]
+receivables:
+  label: Phải thu khách hàng
+  domain: bs
+  source: bs
+  sql: SUM(CASE WHEN t.line_code = 'PT_KH' THEN t.amount ELSE 0 END)
+  format: money
+  better: down
+  synonyms: [phải thu, công nợ phải thu, phải thu khách hàng, ar]
+bs_inventory:
+  label: Hàng tồn kho (sổ cái)
+  domain: bs
+  source: bs
+  sql: SUM(CASE WHEN t.line_code = 'HTK' THEN t.amount ELSE 0 END)
+  format: money
+  better: down
+  synonyms: [hàng tồn kho trên bảng cân đối, tồn kho sổ cái]
+current_assets:
+  label: Tài sản ngắn hạn
+  domain: bs
+  source: bs
+  sql: SUM(CASE WHEN t.line_code IN ('TIEN','PT_KH','PT_KHAC','HTK','TSNH_KHAC') THEN t.amount ELSE 0 END)
+  format: money
+  synonyms: [tài sản ngắn hạn, tài sản lưu động]
+payables:
+  label: Phải trả người bán
+  domain: bs
+  source: bs
+  sql: SUM(CASE WHEN t.line_code = 'PT_NB' THEN t.amount ELSE 0 END)
+  format: money
+  synonyms: [phải trả, phải trả người bán, công nợ phải trả, ap]
+current_liabilities:
+  label: Nợ ngắn hạn
+  domain: bs
+  source: bs
+  sql: SUM(CASE WHEN t.line_code IN ('VAY_NH','PT_NB','CP_PHAI_TRA','NPT_NH_KHAC') THEN t.amount ELSE 0 END)
+  format: money
+  better: down
+  synonyms: [nợ ngắn hạn]
+debt:
+  label: Nợ vay
+  domain: bs
+  source: bs
+  sql: SUM(CASE WHEN t.line_code IN ('VAY_NH','VAY_DH') THEN t.amount ELSE 0 END)
+  format: money
+  better: down
+  synonyms: [nợ vay, vay, tổng nợ vay, dư nợ vay]
+total_liabilities:
+  label: Nợ phải trả
+  domain: bs
+  source: bs
+  sql: SUM(CASE WHEN l.grp = 'L' THEN t.amount ELSE 0 END)
+  joins: [line]
+  format: money
+  better: down
+  synonyms: [nợ phải trả, tổng nợ]
+equity:
+  label: Vốn chủ sở hữu
+  domain: bs
+  source: bs
+  sql: SUM(CASE WHEN l.grp = 'E' THEN t.amount ELSE 0 END)
+  joins: [line]
+  format: money
+  better: up
+  synonyms: [vốn chủ sở hữu, vốn chủ, equity, vcsh]
+bs_amount:
+  label: Số dư
+  domain: bs
+  source: bs
+  sql: SUM(t.amount)
+  format: money
+  internal: true
+net_debt:
+  label: Nợ vay ròng
+  domain: bs
+  formula: debt - cash
+  format: money
+  better: down
+  synonyms: [nợ vay ròng, nợ ròng, net debt]
+working_capital:
+  label: Vốn lưu động
+  domain: bs
+  formula: current_assets - current_liabilities
+  format: money
+  synonyms: [vốn lưu động, working capital]
+current_ratio:
+  label: Hệ số thanh toán hiện hành
+  domain: bs
+  formula: current_assets / current_liabilities
+  format: times
+  better: up
+  assess: {good: 1.5, warn: 1.1}
+  synonyms: [thanh toán hiện hành, hệ số thanh toán, khả năng thanh toán, thanh khoản, current ratio]
+debt_to_equity:
+  label: Nợ phải trả / Vốn chủ
+  domain: bs
+  formula: total_liabilities / equity
+  format: times
+  better: down
+  assess: {good: 1.0, warn: 1.5}
+  synonyms: [đòn bẩy, nợ trên vốn, d/e, đòn bẩy tài chính]
+roe:
+  label: ROE (năm hoá)
+  domain: bs
+  formula: npat * 12 / months / equity
+  format: pct
+  better: up
+  assess: {good: 0.15, warn: 0.1}
+  synonyms: [roe, tỷ suất lợi nhuận trên vốn chủ]
+roa:
+  label: ROA (năm hoá)
+  domain: bs
+  formula: npat * 12 / months / total_assets
+  format: pct
+  better: up
+  assess: {good: 0.08, warn: 0.05}
+  synonyms: [roa, tỷ suất lợi nhuận trên tài sản]
+asset_turnover:
+  label: Vòng quay tổng tài sản (năm hoá)
+  domain: bs
+  formula: pnl_revenue * 12 / months / total_assets
+  format: times
+  better: up
+  synonyms: [vòng quay tài sản]
+equity_multiplier:
+  label: Đòn bẩy tài sản / vốn chủ
+  domain: bs
+  formula: total_assets / equity
+  format: times
+  synonyms: [hệ số nhân vốn]
+dso:
+  label: Số ngày thu tiền (DSO)
+  domain: bs
+  formula: receivables / pnl_revenue * days
+  format: days
+  better: down
+  assess: {good: 45, warn: 60}
+  synonyms: [dso, số ngày thu tiền, kỳ thu tiền, vòng quay phải thu]
+dio:
+  label: Số ngày tồn kho (DIO)
+  domain: bs
+  formula: bs_inventory / pnl_cogs * days
+  format: days
+  better: down
+  assess: {good: 120, warn: 180}
+  synonyms: [dio, số ngày tồn kho, vòng quay tồn kho sổ cái]
+dpo:
+  label: Số ngày trả tiền (DPO)
+  domain: bs
+  formula: payables / pnl_cogs * days
+  format: days
+  better: up
+  synonyms: [dpo, số ngày trả tiền, kỳ trả tiền]
+ccc:
+  label: Chu kỳ tiền mặt (CCC)
+  domain: bs
+  formula: dso + dio - dpo
+  format: days
+  better: down
+  assess: {good: 120, warn: 180}
+  synonyms: [chu kỳ tiền mặt, ccc, chu kỳ chuyển đổi tiền]
+
+# ============================ LƯU CHUYỂN TIỀN TỆ (bi_cashflow)
+cfo:
+  label: Lưu chuyển tiền từ HĐKD
+  domain: cashflow
+  source: cashflow
+  sql: SUM(CASE WHEN l.grp = 'CFO' THEN t.amount ELSE 0 END)
+  joins: [line]
+  format: money
+  better: up
+  synonyms: [dòng tiền kinh doanh, dòng tiền hoạt động, cfo, lưu chuyển tiền từ hoạt động kinh doanh, dòng tiền hđkd]
+cfi:
+  label: Lưu chuyển tiền từ HĐ đầu tư
+  domain: cashflow
+  source: cashflow
+  sql: SUM(CASE WHEN l.grp = 'CFI' THEN t.amount ELSE 0 END)
+  joins: [line]
+  format: money
+  synonyms: [dòng tiền đầu tư, cfi, capex]
+cff:
+  label: Lưu chuyển tiền từ HĐ tài chính
+  domain: cashflow
+  source: cashflow
+  sql: SUM(CASE WHEN l.grp = 'CFF' THEN t.amount ELSE 0 END)
+  joins: [line]
+  format: money
+  synonyms: [dòng tiền tài chính, cff]
+net_cash_flow:
+  label: Lưu chuyển tiền thuần trong kỳ
+  domain: cashflow
+  source: cashflow
+  sql: SUM(t.amount)
+  format: money
+  better: up
+  synonyms: [dòng tiền thuần, lưu chuyển tiền thuần, dòng tiền, cash flow, thay đổi tiền]
+cf_amount:
+  label: Giá trị
+  domain: cashflow
+  source: cashflow
+  sql: SUM(t.amount)
+  format: money
+  internal: true
+fcf:
+  label: Dòng tiền tự do (FCF)
+  domain: cashflow
+  formula: cfo + cfi
+  format: money
+  better: up
+  synonyms: [dòng tiền tự do, fcf, free cash flow]
+cash_conversion:
+  label: Tỷ lệ chuyển hoá LNST thành tiền
+  domain: cashflow
+  formula: cfo / npat
+  format: pct
+  better: up
+  assess: {good: 0.9, warn: 0.7}
+  synonyms: [chất lượng lợi nhuận, tỷ lệ chuyển hoá tiền, lợi nhuận ra tiền]
+
+# ============================ TỒN KHO (bi_inventory, chụp cuối tháng)
+inventory_value:
+  label: Giá trị tồn kho
+  domain: inventory
+  source: inventory
+  sql: SUM(t.value_end)
+  format: money
+  better: down
+  synonyms: [tồn kho, giá trị tồn kho, hàng tồn, hàng tồn kho, inventory]
+inventory_units:
+  label: Số lượng tồn
+  domain: inventory
+  source: inventory
+  sql: SUM(t.units_end)
+  format: number
+  synonyms: [số lượng tồn, tồn kho số lượng]
+sku_count:
+  label: Số mã hàng đang tồn
+  domain: inventory
+  source: inventory
+  sql: COUNT(DISTINCT CASE WHEN t.units_end > 0 THEN t.product_code END)
+  format: number
+  synonyms: [số mã hàng, số sku]
+sku_below_safety:
+  label: Mã hàng dưới mức an toàn
+  domain: inventory
+  source: inventory
+  sql: COUNT(DISTINCT CASE WHEN t.units_end < t.safety_stock THEN t.product_code END)
+  format: number
+  better: down
+  synonyms: [dưới mức an toàn, thiếu hàng, sắp hết hàng, cần nhập thêm, tồn kho an toàn]
+sku_below_reorder:
+  label: Mã hàng cần đặt lại
+  domain: inventory
+  source: inventory
+  sql: COUNT(DISTINCT CASE WHEN t.units_end <= t.reorder_point THEN t.product_code END)
+  format: number
+  better: down
+  synonyms: [điểm đặt hàng, cần đặt hàng, reorder]
+inventory_cover:
+  label: Số ngày tồn kho (theo giá vốn bán)
+  domain: inventory
+  formula: inventory_value / sales_cogs * days
+  format: days
+  better: down
+  assess: {good: 180, warn: 270}
+  synonyms: [số ngày tồn kho, vòng quay tồn kho, tồn kho đủ bán bao lâu, ngày tồn kho]

@@ -1,0 +1,19 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tạo Release từ CHANGELOG
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          awk -v t="## ${TAG}" 'index($0,t)==1{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Xem CHANGELOG.md" > notes.md
+          gh release create "$TAG" --title "AI4BI Lite $TAG" --notes-file notes.md --verify-tag

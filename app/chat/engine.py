@@ -18,7 +18,7 @@ from app.core.scope import User
 from app.core.semantic import Query, SemanticError, catalog, dim, metric, model, run, total
 from app.modules import REGISTRY
 from app.modules import sales as sales_mod
-from app.modules.common import (chart, col, compare, kpi, month_labels, months_of, plan_status, series, table,
+from app.modules.common import (chart, col, compare, kpi, month_labels, months_of, plan_status, series,
                                 waterfall)
 
 log = logging.getLogger(__name__)
@@ -33,6 +33,14 @@ PII = [(re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+"), "[email]"), (re.compile(r"(?<!\d
 
 
 # ------------------------------------------------------------------ tiện ích
+def redact(q: str) -> str:
+    """redact_pii (Blueprint 14.4): xoá email, số điện thoại khỏi câu hỏi."""
+    q = q.strip()[:500]
+    for rx, rep in PII:
+        q = rx.sub(rep, q)
+    return q
+
+
 def _latest() -> tuple[int, int]:
     y, m = db.meta()["last_closed_month"].split("-")
     return int(y), int(m)
@@ -196,14 +204,18 @@ def do_breakdown(part: dict, p: Period, c: Ctx, rank: bool = False) -> dict:
         return {"text": "Không có dữ liệu phù hợp. " + " ".join(res.notes), "kpis": [], "blocks": [], "facts": [],
                 "sql": res.sql, "notes": res.notes}
     k0 = keys[0]
+    kfmt = metric(k0).get("format", "money")
     ly = {r[d]: r.get(k0) for r in run(Query([k0], [d], p.yoy(), f), c.user).rows}
-    additive = "formula" not in metric(k0) and metric(k0).get("format") in ("money", "number")
+    additive = "formula" not in metric(k0) and kfmt in ("money", "number")
     tot = sum(r.get(k0) or 0 for r in res.rows) if additive else None
     rows = [dict(r) for r in res.rows if r.get(k0) is not None]
     for r in rows:
+        r["ly"] = ly.get(r[d])
+        r["diff"] = r[k0] - r["ly"] if r["ly"] is not None else None
         r["share"] = (r[k0] / tot) if additive and tot else None
-        r["growth"] = fmt.growth(r[k0], ly.get(r[d])) if metric(k0).get("format") != "pct" else None
-        r["_tone"] = {"growth": "good" if (r["growth"] or 0) >= 0 else "bad"}
+        r["growth"] = fmt.growth(r[k0], r["ly"]) if kfmt != "pct" else None
+        r["_tone"] = {"growth": "good" if (r["growth"] or 0) >= 0 else "bad",
+                      "diff": "good" if (r["diff"] or 0) >= 0 else "bad"}
     want_plan = "plan" in part["compare"] and k0 == "net_revenue" and d in ("org", "region", "channel")
     if want_plan:
         pl = sales_mod.plan_by(p, c.user, f, d)
@@ -218,22 +230,33 @@ def do_breakdown(part: dict, p: Period, c: Ctx, rank: bool = False) -> dict:
         rows.sort(key=key, reverse=not (asc or want_plan))
     if rank:
         rows = rows[:part.get("top_n") or 5]
-    cols = [col(d, dim(d)["label"])] + [col(k, metric(k)["label"], metric(k).get("format", "money")) for k in keys]
+    # Một khối duy nhất: biểu đồ kỳ này + cùng kỳ + % tăng trưởng; nút "Bảng" mở đủ số so sánh (không lặp bảng riêng)
+    has_ly = kfmt != "pct" and any(r["ly"] is not None for r in rows)
+    cols = [col(d, dim(d)["label"]), col(k0, p.label, kfmt)]
+    if has_ly:
+        cols += [col("ly", f"Cùng kỳ {p.yoy().label}", kfmt), col("diff", "Chênh lệch", kfmt, True),
+                 col("growth", "Tăng trưởng", "signed_pct", True)]
+    cols += [col(k, metric(k)["label"], metric(k).get("format", "money")) for k in keys[1:]]
     if additive:
         cols.append(col("share", "Tỷ trọng", "pct"))
-    if any(r["growth"] is not None for r in rows):
-        cols.append(col("growth", "So cùng kỳ", "signed_pct", True))
     if want_plan:
         cols += [col("plan", "KH Đại lý", "money"), col("ratio", "% KH", "pct"), col("status", "Đánh giá", "badge", True)]
     title = f"{metric(k0)['label']} theo {dim(d)['label'].lower()} – {p.label}"
     shown = rows[:15]
     kind = "hbar" if rank or len(shown) > 6 or max(len(str(r[d])) for r in shown) > 14 else "bar"
-    blocks = [chart("chart", title, kind, [r[d] for r in shown],
-                    [series(metric(k0)["label"], [r[k0] for r in shown])], fmt_=metric(k0).get("format", "money")),
-              table("table", title, cols, rows[:30])]
+    ser = [series(p.label, [r[k0] for r in shown])]
+    if has_ly:
+        ser.append(series(f"Cùng kỳ {p.yoy().label}", [r["ly"] for r in shown], color="muted"))
+    blk = chart("chart", title, kind, [r[d] for r in shown], ser, fmt_=kfmt)
+    blk["growth"] = [r["growth"] for r in shown] if has_ly else None
+    blk["table"] = {"columns": cols, "rows": rows[:30]}
+    if kind == "hbar":
+        blk["height"] = max(240, len(shown) * (34 if has_ly else 24) + 70)
+    blocks = [blk]
     facts, lines = [], []
     head = rows[:3]
-    lines.append(f"**{title}**" + (f" – tổng **{_fmtv(k0, tot)}**" if additive and not rank else "") + ":")
+    if additive and not rank:
+        lines.append(f"**{title}** – tổng **{_fmtv(k0, tot)}**.")
     for r in head:
         s = f"{r[d]}: {_fmtv(k0, r[k0])}"
         if r.get("share") is not None:
@@ -242,8 +265,7 @@ def do_breakdown(part: dict, p: Period, c: Ctx, rank: bool = False) -> dict:
             s += f", {fmt.signed_pct(r['growth'])} so cùng kỳ"
         if want_plan:
             s += f", đạt {fmt.pct(r.get('ratio'))} KH – {r['status'].lower()}"
-        lines.append(f"- {s}")
-        facts.append(s)
+        facts.append(s)   # chỉ làm evidence (nhật ký / làn sâu); không in lại vì biểu đồ đã có
     if want_plan:
         miss = [r for r in rows if r.get("ratio") is not None and r["ratio"] < 0.95]
         s = (f"Có {len(miss)}/{len([r for r in rows if r.get('ratio') is not None])} {dim(d)['label'].lower()} chưa đạt kế hoạch"
@@ -372,6 +394,32 @@ def do_explain(part: dict, p: Period, c: Ctx) -> dict:
     return out
 
 
+def _run_part(p: dict, per: Period, c: Ctx) -> dict:
+    intent = p["intent"]
+    if intent == "block" and p.get("block"):
+        return do_block(p, per, c)
+    if intent == "explain":
+        return do_explain(p, per, c)
+    if intent == "trend":
+        return do_trend(p, per, c)
+    if intent in ("breakdown", "rank") or p.get("dims"):
+        return do_breakdown(p, per, c, rank=intent == "rank")
+    return do_value(p, per, c)
+
+
+def _cached_part(p: dict, per: Period, c: Ctx) -> dict:
+    """result_cache (Blueprint 10.4): khoá = phiếu đã kiểm + kỳ + bộ lọc + phạm vi user + phiên bản dữ liệu.
+    Bấm lại cùng câu gợi ý -> trả ngay, không chạy lại SQL."""
+    from app.core.cache import cache
+    u = c.user
+    scope = "*" if u.is_all else ",".join(sorted(u.orgs or []))
+    ck = ("chat", p["intent"], tuple(p.get("metrics") or []), tuple(p.get("dims") or []), p.get("block"),
+          repr(sorted((p.get("filters") or {}).items())), tuple(p.get("compare") or []), p.get("top_n"), p.get("order"),
+          per, repr(sorted(c.filters.items())), scope, tuple(u.modules))
+    r = cache.get(ck, lambda: _run_part(p, per, c))
+    return {**r, "kpis": list(r["kpis"]), "blocks": list(r["blocks"]), "facts": list(r["facts"])}
+
+
 # ------------------------------------------------------------------ gợi ý câu tiếp theo
 def suggestions(parts: list[dict], user: User) -> list[str]:
     s = []
@@ -422,17 +470,28 @@ HELP_LITE = ("Tôi là **Trợ lý AI4BI Lite** của {company}. Tôi trả lờ
 def answer(question: str, ctx: dict, user: User, history: list[str] | None = None, last: dict | None = None) -> dict:
     t0 = time.time()
     if not user.can("chat"):
-        return {"answer": "Bạn chưa được cấp quyền dùng Trợ lý AI.", "blocks": [], "kpis": [], "suggestions": []}
-    q = question.strip()[:500]
-    for rx, rep in PII:
-        q = rx.sub(rep, q)
+        return {"answer": "Bạn chưa được cấp quyền dùng Trợ lý AI.", "blocks": [], "kpis": [], "suggestions": [],
+                "status": "denied"}
+    q = redact(question)
     ly, lm = _latest()
     ctx = {**ctx, "latest_year": ly, "latest_month": lm}
     company = db.meta().get("company_name", "doanh nghiệp")
     parser, parts = "rules", None
-    if config.llm_on():
+    if not config.PRO:
+        # Bản Lite: hiểu câu bằng LUẬT trước cho nhanh; chỉ gọi LLM khi luật không hiểu câu.
+        # Bản Pro / Enterprise: LLM hiểu câu theo Blueprint 12.2 khối ③ (luật là dự phòng khi LLM lỗi).
+        parts = nlu.parse(q, ctx)
+        if all(p["intent"] == "unknown" or (p["intent"] == "followup" and not last) for p in parts):
+            parts = None   # luật không hiểu -> nhờ LLM (nếu có khoá)
+    if parts is None and config.llm_on():
         try:
-            parts, parser = __import__("app.chat.llm", fromlist=["x"]).parse_qform(q, ctx, history or []), "llm"
+            from app.chat import llm
+            from app.core.cache import cache
+            # Phiếu của cùng câu hỏi + cùng ngữ cảnh kỳ + cùng 2 câu trước -> dùng lại, không gọi lại LLM hiểu câu
+            hk = tuple((history or [])[-2:])
+            ck = ("qform", q.lower(), ctx.get("year"), ctx.get("month"), ctx.get("mode"), ly, lm, hk)
+            parts = [dict(x) for x in cache.get(ck, lambda: llm.parse_qform(q, ctx, list(hk)))]
+            parser = "llm"
         except Exception as e:  # LLM lỗi -> luật; chi tiết chỉ vào log (Blueprint P12)
             log.warning("LLM parse lỗi: %s", e)
     if not parts:
@@ -447,7 +506,7 @@ def answer(question: str, ctx: dict, user: User, history: list[str] | None = Non
         if parts[0]["intent"] not in ("greeting", "help"):
             msg = "Tôi chưa hiểu rõ câu hỏi hoặc câu hỏi nằm ngoài dữ liệu đang có. " + msg
         return {"answer": msg, "blocks": [], "kpis": [], "suggestions": suggestions([], user), "parts": parts,
-                "parser": parser, "lane": "fast", "elapsed_ms": int((time.time() - t0) * 1000)}
+                "parser": parser, "lane": "fast", "elapsed_ms": int((time.time() - t0) * 1000), "status": "help"}
     c = Ctx(user, {k: v for k, v in (ctx.get("filters") or {}).items() if v})
     texts, kpis, blocks, facts, sqls, notes, aliases = [], [], [], [], [], [], {}
     for p in parts:
@@ -461,17 +520,7 @@ def answer(question: str, ctx: dict, user: User, history: list[str] | None = Non
         per = _period(p.get("period"), ctx)
         p["period_label"] = per.label
         try:
-            intent = p["intent"]
-            if intent == "block" and p.get("block"):
-                r = do_block(p, per, c)
-            elif intent == "explain":
-                r = do_explain(p, per, c)
-            elif intent == "trend":
-                r = do_trend(p, per, c)
-            elif intent in ("breakdown", "rank") or p.get("dims"):
-                r = do_breakdown(p, per, c, rank=intent == "rank")
-            else:
-                r = do_value(p, per, c)
+            r = _cached_part(p, per, c)
         except SemanticError as e:
             r = {"text": f"Không trả lời được phần này: {e}.", "kpis": [], "blocks": [], "facts": [], "sql": [], "notes": []}
         texts.append(r["text"])
@@ -482,11 +531,16 @@ def answer(question: str, ctx: dict, user: User, history: list[str] | None = Non
         notes += r.get("notes", [])
         if r.get("alias_dim"):
             aliases.update({v: f"KH_{i + 1:02d}" for i, v in enumerate(r["alias_values"]) if v not in aliases})
+    status = "out_of_scope" if any(p.get("out_of_scope") for p in parts) else "ok" if facts or kpis or blocks else "no_data"
     pro_note = next((n for n in notes if n.startswith("🔒")), None)  # bản Lite: hỏi chỉ số Pro
-    template = "\n\n".join(texts) or (pro_note.removeprefix("🔒 ") if pro_note else "Không có dữ liệu phù hợp với câu hỏi.")
+    template = "\n\n".join(t for t in texts if t)
+    if not template and not (kpis or blocks):
+        template = pro_note.removeprefix("🔒 ") if pro_note else "Không có dữ liệu phù hợp với câu hỏi."
     final, detail, lane, gate_errors = template, None, "fast", []
-    deep = config.llm_on() and config.LLM_NARRATIVE and facts and (
-        len(parts) > 1 or any(p["intent"] in ("explain", "breakdown", "rank", "block") for p in parts))
+    # Blueprint 12.3: làn nhanh = 1 ý, có template, không hỏi "vì sao" -> KHÔNG gọi LLM chuyên gia.
+    # Làn sâu (chuyên gia + gate) chỉ khi nhiều ý hoặc hỏi nguyên nhân.
+    deep = config.LLM_NARRATIVE and facts and (
+        len(parts) > 1 or any(p["intent"] == "explain" for p in parts)) and config.llm_on()
     if deep:
         lane = "deep"
         ev = facts[:]
@@ -506,4 +560,5 @@ def answer(question: str, ctx: dict, user: User, history: list[str] | None = Non
             log.warning("LLM narrative lỗi: %s", e)
     return {"answer": final, "detail": detail, "kpis": kpis, "blocks": blocks, "notes": sorted(set(notes)), "sql": sqls,
             "suggestions": suggestions(parts, user), "parts": [{k: v for k, v in p.items() if k != "question"} for p in parts],
-            "parser": parser, "lane": lane, "gate": gate_errors, "elapsed_ms": int((time.time() - t0) * 1000)}
+            "parser": parser, "lane": lane, "gate": gate_errors, "elapsed_ms": int((time.time() - t0) * 1000),
+            "status": status, "facts": facts}

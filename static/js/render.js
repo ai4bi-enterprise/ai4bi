@@ -163,13 +163,53 @@ function chartConfig(b) {
   if (stacked) datasets.forEach((d) => { d.borderColor = P.surface; d.borderWidth = 1; });
   const valueScale = { ...scale(f), stacked };
   const catScale = { ...cat, stacked, ticks: { ...cat.ticks, callback(v) { const l = this.getLabelForValue(v); return horizontal && l.length > 26 ? l.slice(0, 25) + "…" : l; } } };
-  return { type: "bar", data: { labels: b.labels, datasets },
-    options: { ...base, indexAxis: horizontal ? "y" : "x",
-      interaction: { mode: "index", intersect: false, axis: horizontal ? "y" : "x" },
-      scales: horizontal ? { x: valueScale, y: catScale } : { x: catScale, y: valueScale } } };
+  const g = b.growth;   // % tăng trưởng so cùng kỳ: hiện cạnh cột kỳ này + trong tooltip
+  const options = { ...base, indexAxis: horizontal ? "y" : "x",
+    interaction: { mode: "index", intersect: false, axis: horizontal ? "y" : "x" },
+    scales: horizontal ? { x: valueScale, y: catScale } : { x: catScale, y: valueScale } };
+  if (g?.length) {
+    options.layout = { padding: horizontal ? { right: 56 } : { top: 18 } };
+    options.plugins = { ...base.plugins, tooltip: { callbacks: { ...base.plugins.tooltip.callbacks,
+      footer: (items) => { const v = g[items[0]?.dataIndex]; return v == null ? "" : "Tăng trưởng: " + fmt.signed_pct(v); } } } };
+  }
+  return { type: "bar", data: { labels: b.labels, datasets }, options, plugins: g?.length ? [growthLabels(g, horizontal, P)] : [] };
+}
+
+function growthLabels(g, horizontal, P) {
+  return { id: "growthLabels", afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    const metas = chart.data.datasets.map((_, i) => chart.getDatasetMeta(i)).filter((m) => !m.hidden);
+    if (!metas.length) return;
+    ctx.save();
+    ctx.font = "600 11px system-ui, sans-serif";
+    const base = chart.data.datasets[1]?.data || [];
+    g.forEach((v, i) => {
+      // không có số cùng kỳ mà kỳ này có -> "Mới"
+      const fresh = v == null && base[i] == null && chart.data.datasets[0].data[i] != null;
+      if (v == null && !fresh) return;
+      // đặt nhãn sau cột dài nhất của nhóm (kỳ này / cùng kỳ)
+      const els = metas.map((m) => m.data[i]).filter(Boolean);
+      if (!els.length) return;
+      ctx.fillStyle = fresh ? P.muted : v >= 0 ? P.pos : P.neg;
+      const txt = fresh ? "Mới" : fmt.signed_pct(v);
+      if (horizontal) {
+        const x = Math.max(...els.map((e) => e.x));
+        const y = els.reduce((a, e) => a + e.y, 0) / els.length;
+        ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        ctx.fillText(txt, x + 6, y);
+      } else {
+        const y = Math.min(...els.map((e) => e.y));
+        const x = els.reduce((a, e) => a + e.x, 0) / els.length;
+        ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+        ctx.fillText(txt, x, y - 4);
+      }
+    });
+    ctx.restore();
+  } };
 }
 
 function chartAsTable(b) {
+  if (b.table) return tableEl(b.table.columns, b.table.rows);   // bảng so sánh đầy đủ do backend dựng
   if (b.kind === "waterfall") {
     return tableEl([{ key: "l", label: "Khoản mục" }, { key: "v", label: "Giá trị", format: b.format }],
       b.labels.map((l, i) => ({ l, v: b.series[0].data[i], _bold: b.steps[i] === "total" })));
@@ -195,6 +235,7 @@ export function blockCard(b) {
     if (!b.labels?.length) return (body.innerHTML = `<div class="note">Không có dữ liệu.</div>`);
     const box = document.createElement("div");
     box.className = "chart-box";
+    if (b.height) box.style.height = b.height + "px";
     const cv = document.createElement("canvas");
     cv.setAttribute("role", "img");
     cv.setAttribute("aria-label", b.title);

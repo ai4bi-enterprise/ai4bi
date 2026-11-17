@@ -39,6 +39,10 @@ LLM_NARRATIVE = os.getenv("LLM_NARRATIVE", "true").lower() == "true"
 LLM_KEY_SECRET = os.getenv("LLM_KEY_SECRET", "")
 LLM_PROVIDER_TIMEOUT = float(os.getenv("LLM_PROVIDER_TIMEOUT", "20"))  # mỗi hãng; hết giờ -> hãng kế tiếp
 
+# Hạn mức chatbot mặc định mỗi người / ngày (Blueprint 10.4); admin đổi trên trang quản trị. 0 = không giới hạn.
+CHAT_DAILY_QUESTIONS = int(os.getenv("CHAT_DAILY_QUESTIONS", "100"))
+CHAT_DAILY_TOKENS = int(os.getenv("CHAT_DAILY_TOKENS", "300000"))
+
 SQL_ROW_LIMIT = int(os.getenv("SQL_ROW_LIMIT", "5000"))
 
 # Đăng nhập (Blueprint 14.1). password = tài khoản + mật khẩu, JWT trong cookie httpOnly (mặc định).

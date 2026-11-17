@@ -69,7 +69,7 @@ export function createChat({ body, form, api, context, onAsk }) {
   function renderAnswer(r) {
     const el = document.createElement("div");
     el.className = "msg-bot";
-    el.insertAdjacentHTML("beforeend", `<div class="md">${md(r.answer || "")}</div>`);
+    if (r.answer) el.insertAdjacentHTML("beforeend", `<div class="md">${md(r.answer)}</div>`);
     if (r.kpis?.length) el.append(kpiGrid(r.kpis));
     if (r.blocks?.length) el.append(blocksGrid(r.blocks.map((b) => ({ ...b, width: "full", ask: null }))));
     const meta = document.createElement("div");
@@ -80,8 +80,29 @@ export function createChat({ body, form, api, context, onAsk }) {
       ${r.detail ? `<details><summary>Số liệu chi tiết (do code tính)</summary><div class="md">${md(r.detail)}</div></details>` : ""}
       ${r.sql?.length ? `<details><summary>Xem SQL đã chạy (${r.sql.length})</summary><pre>${esc(r.sql.join(";\n\n"))}</pre></details>` : ""}`;
     el.append(meta);
+    if (r.log_id) el.append(feedbackBar(r.log_id));
     if (r.suggestions?.length) el.append(chips(r.suggestions));
     return el;
+  }
+
+  // 👍 / 👎 (Blueprint 12.5, 13.3): ghi vào nhật ký chatbot để rà soát; 👎 cho phép ghi chú ngắn
+  function feedbackBar(id) {
+    const bar = document.createElement("div");
+    bar.className = "fb";
+    bar.innerHTML = `<span class="muted small">Câu trả lời có hữu ích?</span>
+      <button type="button" data-v="1" aria-label="Hữu ích" title="Hữu ích">👍</button>
+      <button type="button" data-v="-1" aria-label="Chưa đúng / chưa đủ" title="Chưa đúng / chưa đủ">👎</button>`;
+    bar.onclick = async (e) => {
+      const v = +e.target.dataset.v;
+      if (!v) return;
+      const note = v < 0 ? (prompt("Câu trả lời chưa đúng hoặc chưa đủ ở đâu? (không bắt buộc)") || "") : "";
+      try {
+        await api("/api/chat/feedback", { method: "POST", body: JSON.stringify({ log_id: id, vote: v, note }) });
+        bar.querySelectorAll("button").forEach((b) => b.classList.toggle("on", +b.dataset.v === v));
+        bar.querySelector("span").textContent = "Cảm ơn bạn đã phản hồi";
+      } catch (err) { bar.querySelector("span").textContent = err.message; }
+    };
+    return bar;
   }
 
   form.addEventListener("submit", (e) => {

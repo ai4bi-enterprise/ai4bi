@@ -162,13 +162,46 @@ class AskBody(BaseModel):
     last: dict | None = None
 
 
+CHATLOG = config.PRO and config.AUTH_MODE == "password"   # nhật ký + hạn mức cần CSDL sec (bản Pro, có đăng nhập)
+
+
+class FeedbackBody(BaseModel):
+    log_id: int
+    vote: int
+    note: str = Field(default="", max_length=500)
+
+
 @app.post("/api/chat/ask")
 def ask(body: AskBody, user: User = Depends(current_user)):
     require(user, "chat")
-    res = engine.answer(body.question, body.context, user, body.history[-4:], body.last)
+    from app.chat import llm
+    if CHATLOG:
+        from app.core import chatlog
+        chatlog.check(user.user_id)          # khối ① Guard: hạn mức câu / token trong ngày
+    meter, t0 = llm.start_meter(), time.time()
+    try:
+        res = engine.answer(body.question, body.context, user, body.history[-4:], body.last)
+    except Exception:
+        if CHATLOG:
+            chatlog.record(user.user_id, engine.redact(body.question),
+                           {"status": "error", "elapsed_ms": int((time.time() - t0) * 1000)}, meter)
+        raise
+    facts = res.pop("facts", None)           # evidence chỉ vào nhật ký, không gửi lại trình duyệt
+    if CHATLOG:                              # khối ⑫ Audit
+        res["log_id"] = chatlog.record(user.user_id, engine.redact(body.question), {**res, "facts": facts}, meter)
     log.info("CHAT user=%s parser=%s lane=%s %dms q=%r", user.username, res.get("parser"), res.get("lane"),
-             res.get("elapsed_ms", 0), body.question[:120])
+             res.get("elapsed_ms", 0), engine.redact(body.question)[:120])
     return res
+
+
+@app.post("/api/chat/feedback")
+def chat_feedback(body: FeedbackBody, user: User = Depends(current_user)):
+    if not CHATLOG:
+        raise HTTPException(404, "Bản demo không lưu phản hồi")
+    require(user, "chat")
+    from app.core import chatlog
+    chatlog.feedback(user.user_id, body.log_id, body.vote, body.note)
+    return {"ok": True}
 
 
 @app.get("/api/chat/welcome")

@@ -7,6 +7,7 @@ Hãng lỗi / hết hạn mức / quá giờ -> thử hãng kế tiếp; hết h
 """
 from __future__ import annotations
 
+import contextvars
 import json
 import logging
 import re
@@ -31,6 +32,22 @@ log = logging.getLogger(__name__)
 
 ANTHROPIC_VERSION = "2023-06-01"
 ANTHROPIC_BETA = "server-side-fallback-2026-07-01"
+
+
+_METER: contextvars.ContextVar[list | None] = contextvars.ContextVar("llm_meter", default=None)
+
+
+def start_meter() -> list:
+    """Bắt đầu đếm token / model cho một câu hỏi (Blueprint 12.4: ghi token, độ trễ từng lượt)."""
+    m: list = []
+    _METER.set(m)
+    return m
+
+
+def _note(p: dict, mdl: str, tin, tout) -> None:
+    m = _METER.get()
+    if m is not None:
+        m.append({"provider": p["provider"], "model": mdl, "tokens_in": int(tin or 0), "tokens_out": int(tout or 0)})
 
 
 class ProviderError(RuntimeError):
@@ -102,6 +119,8 @@ def _anthropic(p: dict, mdl: str, system: str, user: str, schema: dict | None, e
             "output_config": {"effort": effort, **({"format": {"type": "json_schema", "schema": schema}} if schema else {})}}
     headers = {"x-api-key": p["api_key"], "anthropic-version": ANTHROPIC_VERSION, "anthropic-beta": ANTHROPIC_BETA}
     data = _post(p["base_url"] + "/messages", body, headers, p["api_key"])
+    u = data.get("usage") or {}
+    _note(p, mdl, u.get("input_tokens"), u.get("output_tokens"))
     if data.get("stop_reason") == "refusal":
         raise ProviderError("LLM từ chối yêu cầu")
     text = next((b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"), "")
@@ -127,6 +146,8 @@ def _openai(p: dict, mdl: str, system: str, user: str, schema: dict | None, max_
         body["messages"][0]["content"] = (f"{system}\n\nCHỈ trả về MỘT đối tượng JSON đúng JSON Schema sau:\n"
                                           f"{json.dumps(schema, ensure_ascii=False)}")
         data = _post(url, body, headers, p["api_key"])
+    u = data.get("usage") or {}
+    _note(p, mdl, u.get("prompt_tokens"), u.get("completion_tokens"))
     try:
         choice = data["choices"][0]
         text = choice["message"].get("content") or ""
@@ -147,12 +168,16 @@ def call_one(p: dict, role: str, system: str, user: str, schema: dict | None, ef
 
 def _call(system: str, user: str, schema: dict | None, effort: str, max_tokens: int, role: str = "router") -> str:
     errors = []
+    m = _METER.get()
     for p in keys().chain():
         t = time.time()
+        n0 = len(m) if m is not None else 0
         try:
             text = call_one(p, role, system, user, schema, effort, max_tokens)
             if schema:
                 json.loads(text)   # JSON hỏng -> coi như hãng lỗi, thử hãng sau
+            for x in (m or [])[n0:]:
+                x["role"] = role
             log.info("LLM %s: %s/%s %dms", role, p["provider"], p["model_expert" if role == "expert" else "model_router"],
                      (time.time() - t) * 1000)
             return text

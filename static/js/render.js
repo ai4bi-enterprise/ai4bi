@@ -208,14 +208,21 @@ function growthLabels(g, horizontal, P) {
   } };
 }
 
-function chartAsTable(b) {
-  if (b.table) return tableEl(b.table.columns, b.table.rows);   // bảng so sánh đầy đủ do backend dựng
+// Khối -> { columns, rows }: dùng cho nút "Bảng" và xuất CSV (backend có bản giống: app/core/export.py block_table)
+export function blockTable(b) {
+  if (b.type === "table") return { columns: b.columns, rows: b.rows };
+  if (b.table) return b.table;   // bảng so sánh đầy đủ do backend dựng
   if (b.kind === "waterfall") {
-    return tableEl([{ key: "l", label: "Khoản mục" }, { key: "v", label: "Giá trị", format: b.format }],
-      b.labels.map((l, i) => ({ l, v: b.series[0].data[i], _bold: b.steps[i] === "total" })));
+    return { columns: [{ key: "l", label: "Khoản mục" }, { key: "v", label: "Giá trị", format: b.format }],
+      rows: b.labels.map((l, i) => ({ l, v: b.series[0].data[i], _bold: b.steps[i] === "total" })) };
   }
-  const cols = [{ key: "l", label: "" }, ...b.series.map((s, i) => ({ key: "s" + i, label: s.name, format: b.format }))];
-  return tableEl(cols, b.labels.map((l, j) => Object.fromEntries([["l", l], ...b.series.map((s, i) => ["s" + i, s.data[j]])])));
+  const columns = [{ key: "l", label: "" }, ...b.series.map((s, i) => ({ key: "s" + i, label: s.name, format: b.format }))];
+  return { columns, rows: b.labels.map((l, j) => Object.fromEntries([["l", l], ...b.series.map((s, i) => ["s" + i, s.data[j]])])) };
+}
+
+function chartAsTable(b) {
+  const t = blockTable(b);
+  return tableEl(t.columns, t.rows);
 }
 
 export function blockCard(b) {

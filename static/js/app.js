@@ -1,7 +1,7 @@
 // Khung ứng dụng: menu, bộ chọn kỳ / đơn vị / vai trò, định tuyến, trang dashboard và trang chat.
 import { blocksGrid, destroyCharts, esc, insightsCard, kpiGrid, redrawAll } from "./render.js";
 import { createChat } from "./chat.js";
-import { api as rawApi, toLogin } from "./api.js";
+import { api as rawApi, download as rawDownload, toLogin } from "./api.js";
 
 const $ = (s) => document.querySelector(s);
 const store = {
@@ -12,7 +12,9 @@ const ICONS = { home: "⌂", trend: "↗", box: "▦", pnl: "≡", scale: "⚖",
 const S = { meta: null, user: store.get("user", null), period: store.get("period", null), org: "", module: "overview" };
 
 // Chỉ chế độ demo mới gửi X-Demo-User; chế độ đăng nhập dùng cookie httpOnly (api.js tự refresh 1 lần).
-const api = (path, opts = {}) => rawApi(path, opts, S.meta?.auth?.mode === "password" || !S.user ? {} : { "X-Demo-User": S.user });
+const demoHeader = () => (S.meta?.auth?.mode === "password" || !S.user ? {} : { "X-Demo-User": S.user });
+const api = (path, opts = {}) => rawApi(path, opts, demoHeader());
+const download = (path, body) => rawDownload(path, body, demoHeader());
 
 // ------------------------------------------------------------ tài khoản
 async function signOut(all) {
@@ -172,7 +174,8 @@ async function renderDashboard(module) {
 const chatContext = () => ({ ...S.period, filters: filters(), module: S.module });
 const drawer = $("#chatDrawer");
 const openDrawer = () => { drawer.classList.add("open"); $("#chatCtx").textContent = `Ngữ cảnh: ${periodLabel()}${S.org ? " · " + S.org.split(":")[1] : ""}`; };
-const drawerChat = createChat({ body: $("#chatBodyDrawer"), form: $("#chatFormDrawer"), api, context: chatContext, onAsk: openDrawer });
+const chatOpts = () => ({ api, download, context: chatContext, historyOn: !!S.meta?.chat_history });
+let drawerChat = null;
 $("#chatToggle").onclick = () => (drawer.classList.contains("open") ? drawer.classList.remove("open") : openDrawer());
 $("#chatClose").onclick = () => drawer.classList.remove("open");
 let pageChat = null;
@@ -184,10 +187,11 @@ function renderChatPage() {
   $("#orgSel").hidden = false;
   drawer.classList.remove("open");
   el.innerHTML = `<div class="page-head"><h1>✦ Trợ lý AI</h1><span class="chip">Ngữ cảnh: ${esc(periodLabel())}</span>
-    <span class="muted small">${S.meta.llm ? "LLM đang bật – phân tích sâu có kiểm số" : "Chế độ không LLM – hiểu câu bằng luật, số do code tính"}</span></div>
+    <span class="muted small">${S.meta.llm ? "LLM đang bật – phân tích sâu có kiểm số" : "Chế độ không LLM – hiểu câu bằng luật, số do code tính"}</span>
+    <span class="chat-tools push" id="chatToolsPage"></span></div>
     <div class="chat-page"><div class="chat-body" id="chatBodyPage"></div>
     <form class="chat-input" id="chatFormPage"><textarea rows="1" placeholder="VD: Vì sao lợi nhuận quý này thay đổi so với cùng kỳ?" maxlength="500"></textarea><button type="submit" aria-label="Gửi">➤</button></form></div>`;
-  pageChat = createChat({ body: $("#chatBodyPage"), form: $("#chatFormPage"), api, context: chatContext });
+  pageChat = createChat({ ...chatOpts(), body: $("#chatBodyPage"), form: $("#chatFormPage"), tools: $("#chatToolsPage") });
   pageChat.hello();
 }
 
@@ -217,6 +221,8 @@ $("#scrim").onclick = () => { $("#sidebar").classList.remove("open"); $("#scrim"
     await loadMeta();
   }
   if (S.meta.auth?.mode === "password") watchPermissions();
+  drawerChat = createChat({ ...chatOpts(), body: $("#chatBodyDrawer"), form: $("#chatFormDrawer"), onAsk: openDrawer,
+    tools: $("#chatToolsDrawer") });
   drawerChat.hello();
   route();
 })();

@@ -122,6 +122,7 @@ def meta(user: User = Depends(current_user)):
         "company": m.get("company_name"), "as_of": m.get("as_of_date"), "latest": {"year": ly, "month": lm},
         "first": {"year": first // 100, "month": first % 100}, "source": m.get("source"), "note": m.get("transform_note"),
         "menu": [g for g in menu if g["items"]], "org_tree": tree, "can_chat": user.can("chat"), "llm": config.llm_on(),
+        "chat_history": CHATLOG,
         "user": {"username": user.username, "display_name": user.display_name, "role": user.role,
                  "scope": "Toàn bộ" if user.is_all else ", ".join(o["org_name"] for o in orgs) or "Không có"},
         "demo_users": [{"username": u.username, "display_name": u.display_name, "role": u.role} for u in users().values()]
@@ -170,6 +171,7 @@ class AskBody(BaseModel):
     context: dict = Field(default_factory=dict)
     history: list[str] = Field(default_factory=list)
     last: dict | None = None
+    session_id: str | None = Field(default=None, max_length=36)
 
 
 CHATLOG = config.PRO and config.AUTH_MODE == "password"   # nhật ký + hạn mức cần CSDL sec (bản Pro, có đăng nhập)
@@ -211,6 +213,10 @@ def ask(body: AskBody, request: Request, user: User = Depends(current_user)):
             elif v["limit"]:
                 res["answer"] += (f"\n\nLưu ý: đây là lần thứ {v['count']}/{v['limit']} hỏi ngoài phạm vi; "
                                   "đến ngưỡng tài khoản sẽ tự khoá.")
+    if CHATLOG:                              # lịch sử theo tài khoản (Blueprint 13.3)
+        from app.core import chathistory
+        res["session_id"] = chathistory.append(user.user_id, body.session_id, engine.redact(body.question), res,
+                                               user.perm_version)
     log.info("CHAT user=%s parser=%s lane=%s %dms q=%r", user.username, res.get("parser"), res.get("lane"),
              res.get("elapsed_ms", 0), engine.redact(body.question)[:120])
     return res
@@ -230,6 +236,104 @@ def chat_feedback(body: FeedbackBody, user: User = Depends(current_user)):
 def welcome(user: User = Depends(current_user)):
     require(user, "chat")
     return engine.welcome(user)
+
+
+# ------------------------------------------------------------------ lịch sử chat (Blueprint 10.3 chat_history)
+class RenameBody(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+
+
+def history_user(user: User = Depends(current_user)) -> User:
+    if not CHATLOG:
+        raise HTTPException(404, "Bản này không lưu lịch sử chat")
+    require(user, "chat")
+    return user
+
+
+@app.get("/api/chat/sessions")
+def chat_sessions(user: User = Depends(history_user)):
+    from app.core import chathistory
+    return chathistory.sessions(user.user_id)
+
+
+@app.get("/api/chat/sessions/{sid}")
+def chat_session(sid: str, user: User = Depends(history_user)):
+    from app.core import chathistory
+    return chathistory.get(user.user_id, sid, user.perm_version)
+
+
+@app.patch("/api/chat/sessions/{sid}")
+def chat_session_rename(sid: str, body: RenameBody, user: User = Depends(history_user)):
+    from app.core import chathistory
+    chathistory.rename(user.user_id, sid, body.title)
+    return {"ok": True}
+
+
+@app.delete("/api/chat/sessions/{sid}")
+def chat_session_delete(sid: str, user: User = Depends(history_user)):
+    from app.core import chathistory
+    chathistory.remove(user.user_id, sid)
+    return {"ok": True}
+
+
+@app.delete("/api/chat/sessions")
+def chat_sessions_clear(user: User = Depends(history_user)):
+    from app.core import chathistory
+    return {"deleted": chathistory.remove(user.user_id)}
+
+
+# ------------------------------------------------------------------ xuất Excel / chia sẻ HTML (Blueprint 13.3)
+class ExportBody(BaseModel):
+    question: str = Field(default="", max_length=500)
+    answer: dict
+
+
+class Turn(BaseModel):
+    q: str = Field(default="", max_length=500)
+    r: dict | None = None
+
+
+class ShareBody(BaseModel):
+    title: str = Field(default="Hỏi đáp dữ liệu", max_length=200)
+    turns: list[Turn] = Field(min_length=1, max_length=40)
+
+
+def _export_audit(user: User, request: Request, action: str, detail: str) -> None:
+    """Số liệu rời hệ thống -> ghi audit (bản Pro có đăng nhập)."""
+    if not CHATLOG:
+        return
+    from app.auth_api import client_ip
+    from app.core import auth, secdb
+    try:
+        with secdb.engine().begin() as con:
+            auth._audit(con, action, client_ip(request), actor=user.user_id, detail=detail[:300])
+    except Exception as e:  # noqa: BLE001
+        log.warning("Không ghi được audit %s: %s", action, e)
+
+
+def _download(content: bytes | str, name: str, mime: str) -> Response:
+    return Response(content, media_type=mime, headers={"Content-Disposition": f'attachment; filename="{name}"',
+                                                       "Cache-Control": "no-store"})
+
+
+@app.post("/api/chat/export-xlsx")
+def chat_export_xlsx(body: ExportBody, request: Request, user: User = Depends(current_user)):
+    require(user, "chat")
+    from app.core import export
+    data = export.xlsx(body.question, body.answer, db.meta().get("company_name", ""), user.display_name)
+    _export_audit(user, request, "chat_export", f"xlsx q={engine.redact(body.question)[:200]}")
+    return _download(data, export.filename(body.question or "tra_loi", "xlsx"),
+                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.post("/api/chat/share-log")
+def chat_share_log(body: ShareBody, request: Request, user: User = Depends(current_user)):
+    require(user, "chat")
+    from app.core import export
+    page = export.share_html(body.title, [t.model_dump() for t in body.turns], db.meta().get("company_name", ""),
+                             user.display_name)
+    _export_audit(user, request, "chat_share", f"html {len(body.turns)} câu: {engine.redact(body.title)[:200]}")
+    return _download(page.encode(), export.filename(body.title, "html"), "text/html; charset=utf-8")
 
 
 # ------------------------------------------------------------------ Dữ liệu của tôi (app/core/dataset.py)

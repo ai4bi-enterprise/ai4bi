@@ -317,3 +317,25 @@ tr.bold td { font-weight: 700; background: color-mix(in srgb, var(--surface-2) 5
 .hist-open { flex: 1; min-width: 0; display: grid; gap: 2px; text-align: left; border: 0; background: none; color: var(--text); cursor: pointer; padding: 4px 6px; }
 .hist-open b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .link-btn.danger { color: var(--bad, #dc2626); }
+
+/* Đợt 4: cấp chức danh, nhập hàng loạt, thông báo */
+.admin-bar .push { flex: 1; }
+.admin-bar { align-items: center; }
+.levels-form input { height: 34px; border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; background: var(--surface-2);
+  color: var(--text); font-size: 14px; width: 100%; min-width: 0; }
+.levels-form input[type=number] { max-width: 80px; text-align: right; }
+.levels-form .admin-bar { margin-top: 8px; }
+.dlg textarea { border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px; background: var(--surface-2); font: inherit;
+  font-size: 15px; color: var(--text); resize: vertical; }
+.link-btn.danger { color: var(--bad-text); }
+#importResult { margin-top: 12px; max-height: 50vh; overflow: auto; }
+.bell { position: relative; }
+.bell .count { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; border-radius: 9px; padding: 0 4px;
+  background: var(--bad); color: #fff; font-size: 11px; font-weight: 700; line-height: 17px; }
+.ann-list { display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow: auto; margin: 8px 0; }
+.ann-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; background: var(--surface-2); }
+.ann-item.important { border-color: var(--warn); }
+.ann-item.new { box-shadow: inset 3px 0 0 var(--accent); }
+.ann-item h3 { margin: 0 0 4px; font-size: 15px; }
+.ann-item p { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ann-item .ann-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

@@ -72,7 +72,7 @@ async def timing(request: Request, call_next):
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["X-Frame-Options"] = "DENY"
     resp.headers["Referrer-Policy"] = "same-origin"
-    if request.url.path.startswith("/static/") or request.url.path in ("/", "/login", "/admin/users", "/data"):
+    if request.url.path.startswith("/static/") or request.url.path in ("/", "/login", "/admin/users", "/data", "/team/chat-log"):
         resp.headers["Cache-Control"] = "no-cache"  # luôn kiểm ETag -> deploy giao diện mới không bị kẹt bản cũ
     if request.url.path.startswith("/api/"):
         resp.headers["Cache-Control"] = "no-store"  # dữ liệu theo người dùng: không cho CDN/trình duyệt lưu
@@ -123,6 +123,8 @@ def meta(user: User = Depends(current_user)):
         "first": {"year": first // 100, "month": first % 100}, "source": m.get("source"), "note": m.get("transform_note"),
         "menu": [g for g in menu if g["items"]], "org_tree": tree, "can_chat": user.can("chat"), "llm": config.llm_on(),
         "chat_history": CHATLOG,
+        "announcements": CHATLOG,                       # thông báo hệ thống (bản Pro có đăng nhập)
+        "team_log": CHATLOG and user.can("chat_log_team"),
         "user": {"username": user.username, "display_name": user.display_name, "role": user.role,
                  "scope": "Toàn bộ" if user.is_all else ", ".join(o["org_name"] for o in orgs) or "Không có"},
         "demo_users": [{"username": u.username, "display_name": u.display_name, "role": u.role} for u in users().values()]
@@ -136,7 +138,7 @@ def meta(user: User = Depends(current_user)):
 
 
 if config.PRO:  # đăng nhập, quản trị người dùng, cấu hình LLM trên web – chỉ bản Pro
-    from app.auth_api import admin_router, router as auth_router
+    from app.auth_api import admin_router, router as auth_router, user_router
     from app.core import auth
 
     @app.exception_handler(auth.AuthError)
@@ -145,6 +147,7 @@ if config.PRO:  # đăng nhập, quản trị người dùng, cấu hình LLM tr
 
     app.include_router(auth_router)
     app.include_router(admin_router)
+    app.include_router(user_router)
 
 
 @app.get("/api/dashboard/{module}")
@@ -425,3 +428,7 @@ if config.PRO:
     @app.get("/admin/users")
     def admin_page():
         return FileResponse(STATIC / "admin.html")
+
+    @app.get("/team/chat-log")
+    def team_page():
+        return FileResponse(STATIC / "team.html")

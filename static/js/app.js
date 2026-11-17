@@ -47,6 +47,57 @@ function watchPermissions() {
   }, 30000);
 }
 
+// ------------------------------------------------------------ thông báo hệ thống (Blueprint 10.3 announcements, 15)
+// Có thông báo chưa xem / chưa xác nhận thì tự mở khi vào trang; nội dung là văn bản thuần, luôn escape.
+const ANN = { items: [] };
+const when = (iso) => new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
+const pendingAnn = () => ANN.items.filter((a) => !a.seen_at || (a.require_ack && !a.acked_at));
+
+function annCount() {
+  const n = pendingAnn().length;
+  $("#annBtn").hidden = !ANN.items.length;
+  $("#annCount").hidden = !n;
+  $("#annCount").textContent = n;
+}
+
+function renderAnn() {
+  $("#annList").innerHTML = ANN.items.map((a) => `<article class="ann-item ${a.level === "important" ? "important" : ""} ${a.seen_at ? "" : "new"}" data-id="${a.id}">
+    <h3>${esc(a.title)}${a.level === "important" ? ` <span class="tag warn">Quan trọng</span>` : ""}</h3>
+    <p>${esc(a.body)}</p>
+    <div class="ann-foot muted small">${when(a.starts_at)}
+      ${a.require_ack ? (a.acked_at ? `<span class="tag good">Đã xác nhận ${when(a.acked_at)}</span>`
+        : `<button type="button" class="btn-ai" data-ack>Tôi đã đọc và xác nhận</button>`) : ""}</div></article>`).join("")
+    || `<p class="muted">Không có thông báo.</p>`;
+  annCount();
+}
+
+function openAnn() {
+  renderAnn();
+  if (!$("#annDlg").open) $("#annDlg").showModal();
+  for (const a of ANN.items.filter((x) => !x.seen_at)) {   // mở ra = đã xem; giữ viền "mới" đến khi đóng
+    api(`/api/announcements/${a.id}/seen`, { method: "POST" }).then(() => { a.seen_at = new Date().toISOString(); annCount(); }).catch(() => {});
+  }
+}
+
+async function loadAnn(auto) {
+  try { ANN.items = await api("/api/announcements"); } catch { return; }
+  annCount();
+  if (auto && pendingAnn().length) openAnn();
+}
+
+$("#annBtn").onclick = openAnn;
+$("#annList").onclick = async (e) => {
+  if (e.target.dataset.ack === undefined) return;
+  const a = ANN.items.find((x) => x.id === +e.target.closest("[data-id]").dataset.id);
+  e.target.disabled = true;
+  try {
+    await api(`/api/announcements/${a.id}/ack`, { method: "POST" });
+    a.seen_at ??= new Date().toISOString();
+    a.acked_at = new Date().toISOString();
+    renderAnn();
+  } catch (err) { e.target.disabled = false; alert(err.message); }
+};
+
 // ------------------------------------------------------------ giao diện sáng/tối
 function applyTheme(t) {
   if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
@@ -73,6 +124,7 @@ async function loadMeta() {
   $("#userSelWrap").hidden = !S.meta.demo_users.length;
   $("#acct").hidden = S.meta.auth?.mode !== "password";
   $("#adminLink").hidden = !S.meta.auth?.is_admin;
+  $("#teamLink").hidden = !S.meta.team_log;
   if (S.meta.auth?.email) $("#who").insertAdjacentHTML("beforeend", `<br><span class="muted">${esc(S.meta.auth.email)}</span>`);
   $("#userSel").innerHTML = S.meta.demo_users.map((u) => `<option value="${u.username}" ${u.username === S.user ? "selected" : ""}>${esc(u.display_name)}</option>`).join("");
   const items = S.meta.menu.flatMap((g) => g.items);
@@ -221,6 +273,10 @@ $("#scrim").onclick = () => { $("#sidebar").classList.remove("open"); $("#scrim"
     await loadMeta();
   }
   if (S.meta.auth?.mode === "password") watchPermissions();
+  if (S.meta.announcements) {
+    loadAnn(true);
+    setInterval(() => { if (!document.hidden) loadAnn(false); }, 300000);   // thông báo mới: cập nhật số trên chuông
+  }
   drawerChat = createChat({ ...chatOpts(), body: $("#chatBodyDrawer"), form: $("#chatFormDrawer"), onAsk: openDrawer,
     tools: $("#chatToolsDrawer") });
   drawerChat.hello();

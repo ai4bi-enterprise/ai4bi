@@ -33,6 +33,7 @@
       </label>
       <div class="acct" id="acct" hidden>
         <a class="link-btn" href="/admin/users" id="adminLink" hidden>Quản trị người dùng</a>
+        <a class="link-btn" href="/team/chat-log" id="teamLink" hidden>Nhật ký chat nhóm</a>
         <button class="link-btn" type="button" id="pwBtn">Đổi mật khẩu</button>
         <button class="link-btn" type="button" id="logoutBtn">Đăng xuất</button>
         <button class="link-btn" type="button" id="logoutAllBtn">Đăng xuất mọi thiết bị</button>
@@ -51,6 +52,7 @@
       <select id="monthSel" aria-label="Tháng"></select>
       <select id="orgSel" aria-label="Đơn vị"></select>
       <div class="spacer"></div>
+      <button class="icon-btn bell" id="annBtn" aria-label="Thông báo" title="Thông báo" hidden>🔔<span class="count" id="annCount" hidden></span></button>
       <button class="icon-btn" id="themeBtn" aria-label="Đổi giao diện sáng/tối" title="Sáng / tối">◐</button>
       <button class="btn-ai" id="chatToggle">✦ Hỏi AI</button>
     </header>
@@ -83,6 +85,13 @@
     <p class="muted small">Sau khi đổi, các thiết bị khác sẽ phải đăng nhập lại.</p>
     <p class="login-msg" id="pwMsg" role="alert"></p>
     <div class="dlg-actions"><button class="link-btn" value="cancel" formnovalidate>Huỷ</button><button class="btn-ai" value="ok">Lưu</button></div>
+  </form>
+</dialog>
+<dialog class="dlg dlg-wide" id="annDlg" aria-labelledby="annTitle">
+  <form method="dialog">
+    <h2 id="annTitle">Thông báo</h2>
+    <div class="ann-list" id="annList"></div>
+    <div class="dlg-actions"><button class="btn-ai" value="ok">Đóng</button></div>
   </form>
 </dialog>
 <script type="module" src="/static/js/app.js"></script>

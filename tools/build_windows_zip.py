@@ -145,6 +145,8 @@ def smoke(zip_path: Path) -> None:
 
 
 if __name__ == "__main__":
+    for _s in (sys.stdout, sys.stderr):
+        _s.reconfigure(encoding="utf-8", errors="replace")   # console Windows (cp1252) không in được tiếng Việt
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--embed", type=Path)
     ap.add_argument("--out", type=Path, default=ROOT / "dist" / "AI4BI_Lite_Windows.zip")

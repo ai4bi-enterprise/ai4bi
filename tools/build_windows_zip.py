@@ -101,7 +101,7 @@ def smoke(zip_path: Path) -> None:
     """Giải nén như khách, chạy bằng Python đi kèm, nạp file ví dụ, so doanh thu dashboard với tổng tính từ file."""
     import openpyxl
     port = 8799
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         with zipfile.ZipFile(zip_path) as z:
             z.extractall(tmp)
         app = Path(tmp) / NAME
@@ -127,8 +127,9 @@ def smoke(zip_path: Path) -> None:
                        {"x-file-name": "ChuoiCaPhe_ViDu.xlsx", "content-type": "application/octet-stream"})
             assert rep["can_activate"], rep["errors"]
             _req(base + "/api/data/activate", b"", "POST")
-            ws = openpyxl.load_workbook(app / "data" / "samples" / "ChuoiCaPhe_ViDu.xlsx", read_only=True)["BanHang"]
-            rows = list(ws.iter_rows(values_only=True))
+            wb = openpyxl.load_workbook(app / "data" / "samples" / "ChuoiCaPhe_ViDu.xlsx", read_only=True)
+            rows = list(wb["BanHang"].iter_rows(values_only=True))
+            wb.close()
             h = {v: i for i, v in enumerate(rows[0])}
             want = sum(r[h["Doanh thu thuần"]] for r in rows[1:] if r[h["Ngày"]].endswith("/10/2026"))
             d = _req(base + "/api/dashboard/sales?year=2026&month=10&mode=month")

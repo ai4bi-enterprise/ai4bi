@@ -182,7 +182,7 @@ class FeedbackBody(BaseModel):
 
 
 @app.post("/api/chat/ask")
-def ask(body: AskBody, user: User = Depends(current_user)):
+def ask(body: AskBody, request: Request, user: User = Depends(current_user)):
     require(user, "chat")
     from app.chat import llm
     if CHATLOG:
@@ -199,6 +199,18 @@ def ask(body: AskBody, user: User = Depends(current_user)):
     facts = res.pop("facts", None)           # evidence chỉ vào nhật ký, không gửi lại trình duyệt
     if CHATLOG:                              # khối ⑫ Audit
         res["log_id"] = chatlog.record(user.user_id, engine.redact(body.question), {**res, "facts": facts}, meter)
+        if res.get("status") == "out_of_scope" and not user.is_admin:   # Blueprint 14.3: vi phạm -> vượt ngưỡng tự khoá
+            from app.auth_api import client_ip
+            from app.core import access
+            v = access.violation(user.user_id, f"log_id={res['log_id']} q={engine.redact(body.question)[:200]}",
+                                 client_ip(request))
+            if v["locked"]:
+                res["answer"] += ("\n\nTài khoản của bạn đã bị tạm khoá vì hỏi dữ liệu ngoài phạm vi "
+                                  f"{v['count']} lần. Liên hệ quản trị để mở lại.")
+                res["locked"] = True
+            elif v["limit"]:
+                res["answer"] += (f"\n\nLưu ý: đây là lần thứ {v['count']}/{v['limit']} hỏi ngoài phạm vi; "
+                                  "đến ngưỡng tài khoản sẽ tự khoá.")
     log.info("CHAT user=%s parser=%s lane=%s %dms q=%r", user.username, res.get("parser"), res.get("lane"),
              res.get("elapsed_ms", 0), engine.redact(body.question)[:120])
     return res

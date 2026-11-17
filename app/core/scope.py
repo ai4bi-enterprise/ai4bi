@@ -1,12 +1,12 @@
 """Người dùng và phạm vi dữ liệu – mặc định TỪ CHỐI, thực thi ở backend (Blueprint P3, chương 14).
 
-AUTH_MODE=password (mặc định): người dùng trong sec.users, đăng nhập bằng mật khẩu (app/core/auth.py);
-cột `profile` trỏ tới hồ sơ quyền (vai trò, phân hệ, phạm vi) trong config/users.yaml. Admin thấy tất cả.
+AUTH_MODE=password (mặc định): người dùng trong sec.users, đăng nhập bằng mật khẩu (app/core/auth.py); quyền màn hình
++ phạm vi riêng từng người (app/core/access.py), vai trò trong config/users.yaml là bộ chọn sẵn. Admin thấy tất cả.
 AUTH_MODE=demo: chọn hồ sơ bằng header X-Demo-User, không mật khẩu – chỉ trình diễn offline trên máy.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from functools import lru_cache
 
 import yaml
@@ -59,17 +59,19 @@ def profiles_raw() -> dict[str, dict]:
 
 
 def from_session(row: dict) -> User:
-    """sec.users (+ phiên) -> User. Hồ sơ không tồn tại = không có quyền gì (fail-closed)."""
-    from app.core import auth  # chỉ bản Pro (AUTH_MODE=password)
+    """sec.users + quyền riêng (sec.user_dashboard_access, sec.user_scope) -> User.
+
+    Mặc định từ chối: không có dòng quyền màn hình = không mở màn hình nào; không có dòng phạm vi = không thấy gì.
+    Vai trò (hồ sơ trong config/users.yaml) chỉ còn là nhãn + bộ chọn sẵn trên trang quản trị.
+    """
+    from app.core import access, auth  # chỉ bản Pro (AUTH_MODE=password)
     base = users().get(row["profile"])
-    pv = auth.perm_version(row, profiles_raw().get(row["profile"]))
-    common = dict(email=row["email"], user_id=row["id"], is_admin=bool(row["is_admin"]), profile=row["profile"],
-                  perm_version=pv, display_name=row["display_name"])
+    acc = row.get("access") or {"modules": [], "scope": []}
+    common = dict(username=row["email"], email=row["email"], user_id=row["id"], is_admin=bool(row["is_admin"]),
+                  profile=row["profile"], perm_version=auth.perm_version(row), display_name=row["display_name"])
     if row["is_admin"]:  # Blueprint 14.3: admin thấy tất cả
-        return User(username=row["email"], role=base.role if base else "Quản trị", modules=("*",), orgs=None, **common)
-    if base is None:
-        return User(username=row["email"], role="", modules=(), orgs=frozenset(), **common)
-    return replace(base, username=row["email"], **common)
+        return User(role=base.role if base else "Quản trị", modules=("*",), orgs=None, **common)
+    return User(role=base.role if base else "", modules=tuple(acc["modules"]), orgs=access.resolve(acc["scope"]), **common)
 
 
 def session_row(request: Request) -> dict:

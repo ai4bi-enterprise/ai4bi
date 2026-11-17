@@ -284,3 +284,21 @@ tr.bold td { font-weight: 700; background: color-mix(in srgb, var(--surface-2) 5
 .data-hint { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: space-between; padding: 10px 14px; margin-bottom: 12px;
   border: 1px dashed var(--accent); border-radius: var(--radius); background: var(--surface); }
 .data-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+
+/* Quyền riêng từng người: ô chọn màn hình + cây phạm vi (ScopeTreePicker) */
+.dlg-perm { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+.perm { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin: 0; display: grid; gap: 8px; min-width: 0; }
+.perm legend { font-size: 12px; color: var(--muted); padding: 0 6px; }
+.perm[disabled] { opacity: .5; }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px 12px; }
+.scope-tree { display: grid; gap: 4px; max-height: 300px; overflow: auto; }
+.scope-tree details { border-top: 1px solid var(--border); padding-top: 4px; }
+.scope-tree summary { display: flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; }
+.scope-tree summary::-webkit-details-marker { display: none; }
+.scope-tree summary::before { content: "▸"; color: var(--muted); width: 12px; transition: transform .15s; }
+.scope-tree details[open] > summary::before { transform: rotate(90deg); }
+.scope-tree .orgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 4px 12px; padding: 4px 0 6px 30px; }
+.perm-hint { margin: 0; }
+.perm-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.lock-form { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.lock-form input { width: 90px; height: 34px; border: 1px solid var(--border); border-radius: 8px; padding: 0 8px; background: var(--surface-2); color: var(--text); }

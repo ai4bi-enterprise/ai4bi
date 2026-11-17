@@ -46,7 +46,10 @@ AI4BI làm ngược lại:
 
 👉 **Không muốn cài?** Mở [Live Demo](https://ai4bi-demo.onrender.com/#/sales) ngay trên trình duyệt. Máy chủ miễn phí tự ngủ khi vắng khách, lần mở đầu có thể mất khoảng 1 phút.
 
-**Windows:** tải repo rồi nhấp đúp `run_demo.bat`.
+**Windows – không cần cài gì:** vào [**Releases**](https://github.com/ai4bi-enterprise/ai4bi/releases/latest), tải `AI4BI_Lite_Windows.zip`,
+giải nén rồi nhấp đúp **`AI4BI.bat`**. Gói đã có sẵn Python, không cần quyền quản trị; trình duyệt tự mở khi sẵn sàng.
+(Đã có Python 3.10+ thì có thể tải repo rồi nhấp đúp `run_demo.bat`.)
+
 **Mac / Linux:**
 
 ```bash
@@ -63,6 +66,16 @@ docker run --rm -p 8000:7860 ai4bi-lite     # mở http://localhost:8000
 ```
 
 Muốn dùng LLM: sao chép `.env.example` thành `.env`, điền một trong `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY`.
+
+### 📥 Thử với dữ liệu của chính bạn
+
+Menu **Dữ liệu của tôi** → tải **file mẫu Excel** → điền doanh thu theo dòng hoá đơn (xuất từ MISA, Fast, KiotViet, Sapo… rồi dán vào) → tải lên.
+AI4BI kiểm từng dòng (ngày, số tiền, mã đơn vị), báo lỗi theo **sheet / dòng / cột**, đối soát **tổng tiền trong file = tổng đã nạp**,
+rồi dashboard và Trợ lý AI chạy trên số của bạn. Chưa có số trong tay? Tải **file ví dụ đã điền sẵn** (chuỗi cà phê 3 cửa hàng) và tải ngược lên.
+
+- Dữ liệu **chỉ nằm trên máy bạn** (thư mục `data/user`), không gửi đi đâu; một nút để xoá sạch hoặc quay về dữ liệu mẫu.
+- Đọc được số kiểu Việt Nam `1.234.567`, số âm trong ngoặc `(200.000)`, ngày `dd/mm/yyyy`; bỏ qua dòng "Tổng cộng"; nhận cả `.csv`.
+- Bản Lite: Doanh thu + kế hoạch. Bản Pro thêm sheet P&L, Bảng cân đối, Lưu chuyển tiền, Tồn kho.
 
 ### Câu hỏi mẫu
 
@@ -96,6 +109,7 @@ Kiểm thử: `pip install -r requirements-dev.txt && pytest -q`.
 | Trợ lý AI trên Semantic Layer | ✅ 12 chỉ số bán hàng | ✅ 60 chỉ số, 5 nghiệp vụ | ✅ chỉ số & từ điển nghiệp vụ riêng |
 | Nhận định tự động, cổng kiểm số | ✅ | ✅ | ✅ + chuyên gia phân tích AI |
 | LLM | Khoá trong `.env` | + **trang quản trị nhập khoá** (mã hoá), chọn model từng vai trò | + LLM chạy nội bộ (On-Premise) |
+| Dùng thử với dữ liệu thật | ✅ Nạp Excel doanh thu + kế hoạch | ✅ + P&L, Bảng cân đối, Dòng tiền, Tồn kho | ✅ Kết nối thẳng hệ thống của bạn |
 | Cơ sở dữ liệu | SQLite mẫu | PostgreSQL (đã chạy thật trên Neon); SQL Server, MySQL qua SQLAlchemy | ERP, MISA / Fast / Bravo, SAP B1, Odoo, Data Warehouse |
 | Đăng nhập & phân quyền | 1 người dùng | ✅ **Mật khẩu + JWT, RBAC, Row-Level Security** theo đơn vị, nhật ký | ✅ + SSO / AD |
 | Triển khai | Máy cá nhân, Docker | + Vercel / cloud, hướng dẫn đầy đủ | On-Premise 100%, đấu nối & đào tạo |

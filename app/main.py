@@ -246,6 +246,16 @@ def data_template(_: User = Depends(data_user)):
                     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
+@app.get("/api/data/sample")
+def data_sample(_: User = Depends(data_user)):
+    """File ví dụ đã điền sẵn (tools/make_sample_data.py) – xem cách điền hoặc nạp thử ngay."""
+    path = config.ROOT / "data" / "samples" / "ChuoiCaPhe_ViDu.xlsx"
+    if not path.exists():
+        raise HTTPException(404, "Không có file ví dụ")
+    return FileResponse(path, filename=path.name,
+                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
 @app.post("/api/data/upload")
 async def data_upload(request: Request, _: User = Depends(data_user)):
     body = await request.body()

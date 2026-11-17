@@ -2,10 +2,12 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:      # chạy tay: chỉ dựng + kiểm gói Windows (tải ở mục Artifacts), không tạo Release
 permissions:
   contents: write
 jobs:
   release:
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -17,3 +19,39 @@ jobs:
           awk -v t="## ${TAG}" 'index($0,t)==1{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md > notes.md
           [ -s notes.md ] || echo "Xem CHANGELOG.md" > notes.md
           gh release create "$TAG" --title "AI4BI Lite $TAG" --notes-file notes.md --verify-tag
+
+  windows:
+    name: Gói ZIP chạy ngay cho Windows
+    needs: release
+    if: ${{ !cancelled() && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Tải Python embeddable cùng phiên bản (python.org)
+        shell: pwsh
+        run: |
+          $v = python -c "import platform; print(platform.python_version())"
+          $f = "python-$v-embed-amd64.zip"
+          Invoke-WebRequest "https://www.python.org/ftp/python/$v/$f" -OutFile $f
+          "EMBED=$f" >> $env:GITHUB_ENV
+      - name: Đóng gói
+        shell: pwsh
+        run: python tools/build_windows_zip.py --embed $env:EMBED --out dist/AI4BI_Lite_Windows.zip
+      - name: Chạy thử gói như khách (giải nén, khởi động, nạp file ví dụ, so số)
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check openpyxl
+          python tools/build_windows_zip.py --smoke dist/AI4BI_Lite_Windows.zip
+      - uses: actions/upload-artifact@v5
+        with:
+          name: AI4BI_Lite_Windows
+          path: dist/AI4BI_Lite_Windows.zip
+      - name: Đính kèm vào Release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" dist/AI4BI_Lite_Windows.zip --clobber

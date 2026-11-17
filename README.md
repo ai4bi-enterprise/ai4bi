@@ -10,6 +10,8 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 
+[![Dùng thử Live Demo](https://img.shields.io/badge/🚀_Dùng_thử_Live_Demo-không_cần_cài_đặt-2ea44f?style=for-the-badge)](https://ai4bi-demo.onrender.com/#/sales)
+
 [**⚡ Chạy thử trong 60 giây**](#-chạy-thử-trong-60-giây) · [**💎 So sánh Lite / Pro / Enterprise**](#-so-sánh-phiên-bản) · [**📅 Đặt lịch demo 1-1**](https://calendly.com/ai4bi-contact/demo)
 
 </div>
@@ -41,6 +43,8 @@ AI4BI làm ngược lại:
 - Giao diện sáng / tối, chạy tốt trên điện thoại.
 
 ## ⚡ Chạy thử trong 60 giây
+
+👉 **Không muốn cài?** Mở [Live Demo](https://ai4bi-demo.onrender.com/#/sales) ngay trên trình duyệt. Máy chủ miễn phí tự ngủ khi vắng khách, lần mở đầu có thể mất khoảng 1 phút.
 
 **Windows:** tải repo rồi nhấp đúp `run_demo.bat`.
 **Mac / Linux:**

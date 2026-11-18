@@ -251,6 +251,9 @@ tr.bold td { font-weight: 700; background: color-mix(in srgb, var(--surface-2) 5
   .tbl .num { text-align: left; }
   .row-actions { white-space: normal; }
   .tbl td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: 12px; }
+  /* [admin-tabs-wrap-v1] 6 tab ~616 px > màn 390 px: xuống dòng, thấy đủ tab, không tràn ngang */
+  .admin-tabs { display: flex; flex-wrap: wrap; gap: 2px; justify-self: stretch; }
+  .admin-tabs button { flex: 1 1 auto; padding: 6px 10px; }
 }
 .tbl td { white-space: normal; }
 .login-msg:empty { display: none; }

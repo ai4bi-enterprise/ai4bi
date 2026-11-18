@@ -239,7 +239,9 @@ export function blockCard(b) {
     body.innerHTML = "";
     if (b.type === "table") return body.append(tableEl(b.columns, b.rows));
     if (asTable) return body.append(chartAsTable(b));
-    if (!b.labels?.length) return (body.innerHTML = `<div class="note">Không có dữ liệu.</div>`);
+    // [empty-chart-v1] mọi giá trị trống -> không vẽ trục rỗng
+    if (!b.labels?.length || !b.series?.some((s) => s.data?.some((v) => v != null)))
+      return (body.innerHTML = `<div class="note empty-chart">Chưa có dữ liệu cho kỳ / phạm vi này.</div>`);
     const box = document.createElement("div");
     box.className = "chart-box";
     if (b.height) box.style.height = b.height + "px";

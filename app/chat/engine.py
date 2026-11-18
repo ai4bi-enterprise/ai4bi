@@ -542,7 +542,9 @@ def answer(question: str, ctx: dict, user: User, history: list[str] | None = Non
         notes += r.get("notes", [])
         if r.get("alias_dim"):
             aliases.update({v: f"KH_{i + 1:02d}" for i, v in enumerate(r["alias_values"]) if v not in aliases})
-    status = "out_of_scope" if any(p.get("out_of_scope") for p in parts) else "ok" if facts or kpis or blocks else "no_data"
+    # [no-data-status-v1] KPI toàn giá trị trống, không khối -> "không có dữ liệu", không gợi ý câu hỏi tiếp
+    has_data = facts or blocks or any(k.get("value") is not None for k in kpis)
+    status = "out_of_scope" if any(p.get("out_of_scope") for p in parts) else "ok" if has_data else "no_data"
     pro_note = next((n for n in notes if n.startswith("🔒")), None)  # bản Lite: hỏi chỉ số Pro
     template = "\n\n".join(t for t in texts if t)
     if not template and not (kpis or blocks):
@@ -570,6 +572,7 @@ def answer(question: str, ctx: dict, user: User, history: list[str] | None = Non
         except Exception as e:
             log.warning("LLM narrative lỗi: %s", e)
     return {"answer": final, "detail": detail, "kpis": kpis, "blocks": blocks, "notes": sorted(set(notes)), "sql": sqls,
-            "suggestions": suggestions(parts, user), "parts": [{k: v for k, v in p.items() if k != "question"} for p in parts],
+            "suggestions": [] if status == "no_data" else suggestions(parts, user),
+            "parts": [{k: v for k, v in p.items() if k != "question"} for p in parts],
             "parser": parser, "lane": lane, "gate": gate_errors, "elapsed_ms": int((time.time() - t0) * 1000),
             "status": status, "facts": facts}

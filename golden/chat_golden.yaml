@@ -176,6 +176,8 @@ cases:
   - {id: G49, split: dev, group: scope, user: eu, q: "Doanh thu theo đơn vị quý này",
      expect: {intent: breakdown, dim: org},
      check: [{metric: net_revenue, period: [2026, 9, quarter], by: org}]}
+  - {id: G54, split: dev, group: scope, user: none, q: "Số đơn hàng quý 3", deny: true}
+  - {id: G55, split: dev, group: scope, user: none, q: "Số khách hàng phát sinh doanh thu tháng này", deny: true}
   - {id: G50, split: dev, group: value, q: "Doanh thu Q2/2025",
      expect: {metrics: [net_revenue], period: [2025, 6, quarter]},
      check: [{metric: net_revenue, period: [2025, 6, quarter]}]}

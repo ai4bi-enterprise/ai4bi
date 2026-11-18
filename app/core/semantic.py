@@ -208,7 +208,9 @@ def run(q: Query, user: User | None) -> Result:
             unavailable.update(keys)
             continue
         sqls.append(sql)
-        for r in db.fetch(sql, params):
+        # [empty-scope-v1] không phạm vi -> không truy vấn, mọi chỉ tiêu trống (COUNT trên tập rỗng = 0 là số sai)
+        fetched = ([] if q.dims else [{}]) if user is not None and user.orgs == frozenset() else db.fetch(sql, params)
+        for r in fetched:
             key = tuple(r.get(f"d_{d}") for d in q.dims)
             row = merged.setdefault(key, {d: r.get(f"d_{d}") for d in q.dims})
             for d in q.dims:

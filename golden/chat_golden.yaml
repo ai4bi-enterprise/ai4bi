@@ -1,0 +1,222 @@
+# BỘ GOLDEN CHATBOT – Blueprint 12.5, 17 "Chatbot", 24 G4. Chạy: scripts\ai4bi-golden.ps1 (xem tools/golden.py).
+# Đáp án số KHÔNG ghi ở đây: app/core/golden.py tính lại bằng SQL độc lập mỗi lần chạy (đúng cả khi dữ liệu đổi).
+#
+# Mỗi câu:
+#   id, split (dev | holdout – holdout không dùng để chỉnh luật / prompt), group, q (câu hỏi),
+#   user: full | eu (chỉ FR, DE, UK) | none (không phạm vi)   – mặc định full
+#   ctx: kỳ màn hình đang xem (mặc định ở dưới), after: câu hỏi trước (câu nối tiếp)
+#   expect: phiếu mong đợi – {intent, metrics, dim, period: [năm, tháng, mode], filters, compare} hoặc danh sách (câu nhiều ý)
+#           hoặc "help" (câu ngoài dữ liệu → trả hướng dẫn, không có số)
+#   check: đáp án số – {metric, period, orgs | region, filters (cột bi_sales), yoy, ratio: [tử, mẫu], by | rank (+top) | trend}
+#   deny: true – không được có số liệu nào (ngoài phạm vi)
+# Kỳ: mode month | quarter (từ đầu quý tới tháng) | ytd (từ đầu năm tới tháng); chỉ tiêu số dư lấy tháng cuối kỳ.
+# Câu hỏi không chứa tên khách hàng.
+
+ctx: {year: 2026, month: 9, mode: quarter}
+
+# Mức sàn của parser luật trên dữ liệu mẫu: pytest báo lỗi khi tụt dưới mức này. Cổng G4 vẫn là ≥ 95% đúng số.
+# Sửa luật NLU làm tăng tỷ lệ → nâng mức sàn trong cùng thay đổi.
+baseline:
+  pro_rules: {intent: 0.89, number: 0.86}
+  lite_rules: {intent: 0.95, number: 0.88}
+
+cases:
+  # ------------------------------------------------------------------ 1 chỉ tiêu, các cách nói kỳ
+  - {id: G01, split: dev, group: value, q: "Doanh thu quý 3",
+     expect: {intent: value, metrics: [net_revenue], period: [2026, 9, quarter]},
+     check: [{metric: net_revenue, period: [2026, 9, quarter]}]}
+  - {id: G02, split: dev, group: value, q: "Doanh thu tháng 8",
+     expect: {intent: value, metrics: [net_revenue], period: [2026, 8, month]},
+     check: [{metric: net_revenue, period: [2026, 8, month]}]}
+  - {id: G03, split: dev, group: value, q: "Doanh thu năm 2025 là bao nhiêu?",
+     expect: {intent: value, metrics: [net_revenue], period: [2025, 12, ytd]},
+     check: [{metric: net_revenue, period: [2025, 12, ytd]}]}
+  - {id: G04, split: dev, group: value, q: "Doanh số lũy kế từ đầu năm",
+     expect: {intent: value, metrics: [net_revenue], period: [2026, 9, ytd]},
+     check: [{metric: net_revenue, period: [2026, 9, ytd]}]}
+  - {id: G05, split: dev, group: value, q: "Doanh thu tháng trước",
+     expect: {intent: value, metrics: [net_revenue], period: [2026, 8, month]},
+     check: [{metric: net_revenue, period: [2026, 8, month]}]}
+  - {id: G06, split: dev, group: value, q: "Doanh thu quý 2 năm 2025",
+     expect: {intent: value, metrics: [net_revenue], period: [2025, 6, quarter]},
+     check: [{metric: net_revenue, period: [2025, 6, quarter]}]}
+  - {id: G07, split: dev, group: value, q: "Lợi nhuận sau thuế quý này",
+     expect: {intent: value, metrics: [npat], period: [2026, 9, quarter]},
+     check: [{metric: npat, period: [2026, 9, quarter]}]}
+  - {id: G08, split: dev, group: value, q: "Lãi ròng tháng 6",
+     expect: {intent: value, metrics: [npat], period: [2026, 6, month]},
+     check: [{metric: npat, period: [2026, 6, month]}]}
+  - {id: G09, split: dev, group: value, q: "Lợi nhuận gộp quý 3",
+     expect: {intent: value, metrics: [gross_profit], period: [2026, 9, quarter]},
+     check: [{metric: gross_profit, period: [2026, 9, quarter]}]}
+  - {id: G10, split: dev, group: value, q: "EBITDA năm 2025",
+     expect: {intent: value, metrics: [ebitda], period: [2025, 12, ytd]},
+     check: [{metric: ebitda, period: [2025, 12, ytd]}]}
+  - {id: G11, split: dev, group: value, q: "Tiền mặt cuối tháng 9",
+     expect: {intent: value, metrics: [cash], period: [2026, 9]},
+     check: [{metric: cash, period: [2026, 9, month]}]}
+  - {id: G12, split: dev, group: value, q: "Tổng tài sản hiện tại",
+     expect: {intent: value, metrics: [total_assets], period: [2026, 9]},
+     check: [{metric: total_assets, period: [2026, 9, month]}]}
+  - {id: G13, split: dev, group: value, q: "Nợ phải trả và vốn chủ sở hữu",
+     expect: {intent: value, metrics: [total_liabilities, equity]},
+     check: [{metric: total_liabilities, period: [2026, 9, month]}, {metric: equity, period: [2026, 9, month]}]}
+  - {id: G14, split: dev, group: value, q: "Dòng tiền từ hoạt động kinh doanh quý 3",
+     expect: {intent: value, metrics: [cfo], period: [2026, 9, quarter]},
+     check: [{metric: cfo, period: [2026, 9, quarter]}]}
+  - {id: G15, split: dev, group: value, q: "Lưu chuyển tiền thuần năm nay",
+     expect: {intent: value, metrics: [net_cash_flow], period: [2026, 9, ytd]},
+     check: [{metric: net_cash_flow, period: [2026, 9, ytd]}]}
+  - {id: G16, split: dev, group: value, q: "Giá trị tồn kho tháng 9",
+     expect: {intent: value, metrics: [inventory_value], period: [2026, 9]},
+     check: [{metric: inventory_value, period: [2026, 9, month]}]}
+  - {id: G17, split: dev, group: value, q: "Chiết khấu quý này",
+     expect: {intent: value, metrics: [discount], period: [2026, 9, quarter]},
+     check: [{metric: discount, period: [2026, 9, quarter]}]}
+  - {id: G18, split: dev, group: value, q: "Sản lượng bán quý 3",
+     expect: {intent: value, metrics: [quantity], period: [2026, 9, quarter]},
+     check: [{metric: quantity, period: [2026, 9, quarter]}]}
+  - {id: G19, split: dev, group: value, q: "Số đơn hàng tháng 9",
+     expect: {intent: value, metrics: [orders], period: [2026, 9, month]},
+     check: [{metric: orders, period: [2026, 9, month]}]}
+
+  # ------------------------------------------------------------------ bộ lọc đơn vị / khu vực / kênh / nhóm hàng
+  - {id: G20, split: dev, group: filter, q: "Doanh thu Pháp quý 3",
+     expect: {intent: value, metrics: [net_revenue], filters: {org: ["Pháp"]}},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], orgs: [FR]}]}
+  - {id: G21, split: dev, group: filter, q: "Doanh thu Châu Âu tháng 8",
+     expect: {intent: value, metrics: [net_revenue], period: [2026, 8, month], filters: {region: ["Châu Âu"]}},
+     check: [{metric: net_revenue, period: [2026, 8, month], region: "Châu Âu"}]}
+  - {id: G22, split: dev, group: filter, q: "Doanh thu kênh online quý này",
+     expect: {intent: value, metrics: [net_revenue], filters: {channel: ["Online"]}},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], filters: {channel: [Online]}}]}
+  - {id: G23, split: dev, group: filter, q: "Doanh thu xe đạp năm 2025",
+     expect: {intent: value, metrics: [net_revenue], period: [2025, 12, ytd], filters: {category: ["Xe đạp"]}},
+     check: [{metric: net_revenue, period: [2025, 12, ytd], filters: {category: ["Xe đạp"]}}]}
+  - {id: G24, split: dev, group: filter, q: "Lợi nhuận sau thuế của Đức quý 3",
+     expect: {intent: value, metrics: [npat], filters: {org: ["Đức"]}},
+     check: [{metric: npat, period: [2026, 9, quarter], orgs: [DE]}]}
+
+  # ------------------------------------------------------------------ so sánh
+  - {id: G25, split: dev, group: compare, q: "Doanh thu quý 3 so với cùng kỳ",
+     expect: {intent: value, metrics: [net_revenue], compare: yoy},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], yoy: true}]}
+  - {id: G26, split: dev, group: compare, q: "Doanh thu quý 3 so với kế hoạch",
+     expect: {intent: value, metrics: [net_revenue], compare: plan},
+     check: [{metric: net_revenue, period: [2026, 9, quarter]}]}
+  - {id: G27, split: dev, group: compare, q: "Lợi nhuận sau thuế tháng 9 so với cùng kỳ năm trước",
+     expect: {intent: value, metrics: [npat], period: [2026, 9, month], compare: yoy},
+     check: [{metric: npat, period: [2026, 9, month], yoy: true}]}
+
+  # ------------------------------------------------------------------ tỷ lệ
+  - {id: G28, split: dev, group: ratio, q: "Biên lãi gộp bán hàng quý 3",
+     expect: {intent: value, metrics: [sales_margin]},
+     check: [{metric: sales_margin, period: [2026, 9, quarter], ratio: [sales_gross_profit, net_revenue]}]}
+  - {id: G29, split: dev, group: ratio, q: "Biên lợi nhuận ròng năm 2025",
+     expect: {intent: value, metrics: [net_margin], period: [2025, 12, ytd]},
+     check: [{metric: net_margin, period: [2025, 12, ytd], ratio: [npat, pnl_revenue]}]}
+  - {id: G30, split: dev, group: ratio, q: "Tỷ lệ nợ phải trả trên vốn chủ",
+     expect: {intent: value, metrics: [debt_to_equity]},
+     check: [{metric: debt_to_equity, period: [2026, 9, month], ratio: [total_liabilities, equity]}]}
+
+  # ------------------------------------------------------------------ phân tích theo chiều / xếp hạng
+  - {id: G31, split: dev, group: breakdown, q: "Doanh thu theo khu vực năm 2025",
+     expect: {intent: breakdown, metrics: [net_revenue], dim: region, period: [2025, 12, ytd]},
+     check: [{metric: net_revenue, period: [2025, 12, ytd], by: region}]}
+  - {id: G32, split: dev, group: breakdown, q: "Doanh thu theo đơn vị quý này",
+     expect: {intent: breakdown, metrics: [net_revenue], dim: org},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], by: org}]}
+  - {id: G33, split: dev, group: breakdown, q: "Doanh thu theo nhóm hàng quý 3",
+     expect: {intent: breakdown, metrics: [net_revenue], dim: category},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], by: category}]}
+  - {id: G34, split: dev, group: breakdown, q: "Doanh thu theo kênh bán năm nay",
+     expect: {intent: breakdown, metrics: [net_revenue], dim: channel, period: [2026, 9, ytd]},
+     check: [{metric: net_revenue, period: [2026, 9, ytd], by: channel}]}
+  - {id: G35, split: dev, group: breakdown, q: "Lợi nhuận sau thuế theo đơn vị quý 3",
+     expect: {intent: breakdown, metrics: [npat], dim: org},
+     check: [{metric: npat, period: [2026, 9, quarter], by: org}]}
+  - {id: G36, split: dev, group: rank, q: "Top 5 khách hàng doanh thu cao nhất quý này",
+     expect: {intent: rank, metrics: [net_revenue], dim: customer},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], rank: customer, top: 5}]}
+  - {id: G37, split: dev, group: rank, q: "Top 3 đơn vị có doanh thu cao nhất quý 3",
+     expect: {intent: rank, metrics: [net_revenue], dim: org},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], rank: org, top: 3}]}
+
+  # ------------------------------------------------------------------ xu hướng / nguyên nhân
+  - {id: G38, split: dev, group: trend, q: "Doanh thu theo tháng năm nay",
+     expect: {intent: trend, metrics: [net_revenue]},
+     check: [{metric: net_revenue, period: [2026, 9, ytd], trend: true}]}
+  - {id: G39, split: dev, group: trend, q: "Xu hướng lợi nhuận sau thuế năm 2025",
+     expect: {intent: trend, metrics: [npat]},
+     check: [{metric: npat, period: [2025, 12, ytd], trend: true}]}
+  - {id: G40, split: dev, group: explain, q: "Vì sao doanh thu quý 3 tăng?",
+     expect: {intent: explain, metrics: [net_revenue]}}
+
+  # ------------------------------------------------------------------ nhiều ý / nối tiếp / ngoài dữ liệu
+  - {id: G41, split: dev, group: multi, q: "Doanh thu và lợi nhuận sau thuế quý 2",
+     expect: {metrics: [net_revenue, npat], period: [2026, 6, quarter]},
+     check: [{metric: net_revenue, period: [2026, 6, quarter]}, {metric: npat, period: [2026, 6, quarter]}]}
+  - {id: G42, split: dev, group: multi, q: "Doanh thu quý 3 và tổng tài sản",
+     expect: [{metrics: [net_revenue]}, {metrics: [total_assets]}],
+     check: [{metric: net_revenue, period: [2026, 9, quarter]}, {metric: total_assets, period: [2026, 9, month]}]}
+  - {id: G43, split: dev, group: followup, q: "Còn quý 2 thì sao?", after: "Doanh thu quý 3",
+     expect: {metrics: [net_revenue], period: [2026, 6, quarter]},
+     check: [{metric: net_revenue, period: [2026, 6, quarter]}]}
+  - {id: G44, split: dev, group: help, q: "Thời tiết hôm nay thế nào?", expect: help, deny: true}
+
+  # ------------------------------------------------------------------ phạm vi (3 tài khoản)
+  - {id: G45, split: dev, group: scope, user: eu, q: "Doanh thu Pháp quý 3",
+     expect: {metrics: [net_revenue], filters: {org: ["Pháp"]}},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], orgs: [FR]}]}
+  - {id: G46, split: dev, group: scope, user: eu, q: "Doanh thu quý 3",
+     expect: {metrics: [net_revenue]},
+     check: [{metric: net_revenue, period: [2026, 9, quarter]}]}
+  - {id: G47, split: dev, group: scope, user: eu, q: "Doanh thu Canada quý 3", deny: true}
+  - {id: G48, split: dev, group: scope, user: none, q: "Doanh thu quý 3", deny: true}
+  - {id: G49, split: dev, group: scope, user: eu, q: "Doanh thu theo đơn vị quý này",
+     expect: {intent: breakdown, dim: org},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], by: org}]}
+
+  # ================================================================== HOLDOUT (không dùng để chỉnh luật / prompt)
+  - {id: H01, split: holdout, group: value, q: "Cho tôi biết doanh số tháng 7 năm 2026",
+     expect: {metrics: [net_revenue], period: [2026, 7, month]},
+     check: [{metric: net_revenue, period: [2026, 7, month]}]}
+  - {id: H02, split: holdout, group: value, q: "Q3 lãi sau thuế bao nhiêu",
+     expect: {metrics: [npat], period: [2026, 9, quarter]},
+     check: [{metric: npat, period: [2026, 9, quarter]}]}
+  - {id: H03, split: holdout, group: value, q: "Lợi nhuận trước thuế năm 2025",
+     expect: {metrics: [pbt], period: [2025, 12, ytd]},
+     check: [{metric: pbt, period: [2025, 12, ytd]}]}
+  - {id: H04, split: holdout, group: filter, q: "Doanh thu Anh và Pháp quý 3",
+     expect: {metrics: [net_revenue], filters: {org: ["Anh", "Pháp"]}},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], orgs: [UK, FR]}]}
+  - {id: H05, split: holdout, group: compare, q: "Doanh thu Bắc Mỹ năm nay so với năm ngoái",
+     expect: {metrics: [net_revenue], period: [2026, 9, ytd], filters: {region: ["Bắc Mỹ"]}, compare: yoy},
+     check: [{metric: net_revenue, period: [2026, 9, ytd], region: "Bắc Mỹ", yoy: true}]}
+  - {id: H06, split: holdout, group: value, q: "Tiền và tương đương tiền cuối quý 2",
+     expect: {metrics: [cash], period: [2026, 6]},
+     check: [{metric: cash, period: [2026, 6, month]}]}
+  - {id: H07, split: holdout, group: rank, q: "Top 3 đơn vị lợi nhuận sau thuế cao nhất năm 2025",
+     expect: {intent: rank, metrics: [npat], dim: org},
+     check: [{metric: npat, period: [2025, 12, ytd], rank: org, top: 3}]}
+  - {id: H08, split: holdout, group: trend, q: "Doanh thu từng tháng năm 2025",
+     expect: {intent: trend, metrics: [net_revenue]},
+     check: [{metric: net_revenue, period: [2025, 12, ytd], trend: true}]}
+  - {id: H09, split: holdout, group: value, q: "Dòng tiền đầu tư năm nay",
+     expect: {metrics: [cfi], period: [2026, 9, ytd]},
+     check: [{metric: cfi, period: [2026, 9, ytd]}]}
+  - {id: H10, split: holdout, group: ratio, q: "Biên lợi nhuận gộp quý 3",
+     expect: {metrics: [gross_margin]},
+     check: [{metric: gross_margin, period: [2026, 9, quarter], ratio: [gross_profit, pnl_revenue]}]}
+  - {id: H11, split: holdout, group: scope, user: eu, q: "Lợi nhuận sau thuế quý 3",
+     expect: {metrics: [npat]},
+     check: [{metric: npat, period: [2026, 9, quarter]}]}
+  - {id: H12, split: holdout, group: scope, user: none, q: "Top 5 khách hàng doanh thu cao nhất", deny: true}
+  - {id: H13, split: holdout, group: explain, q: "Tại sao lợi nhuận sau thuế tháng 8 giảm?",
+     expect: {intent: explain, metrics: [npat], period: [2026, 8, month]}}
+  - {id: H14, split: holdout, group: compare, q: "Doanh thu online tháng 9 so với cùng kỳ",
+     expect: {metrics: [net_revenue], period: [2026, 9, month], filters: {channel: ["Online"]}, compare: yoy},
+     check: [{metric: net_revenue, period: [2026, 9, month], filters: {channel: [Online]}, yoy: true}]}
+  - {id: H15, split: holdout, group: breakdown, q: "Doanh thu theo khu vực quý 3",
+     expect: {intent: breakdown, metrics: [net_revenue], dim: region},
+     check: [{metric: net_revenue, period: [2026, 9, quarter], by: region}]}

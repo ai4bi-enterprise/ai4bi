@@ -301,6 +301,9 @@ def do_trend(part: dict, p: Period, c: Ctx) -> dict:
     k0 = keys[0]
     ser = [series(metric(k)["label"], [cur.get(m, {}).get(k) for m in yms]) for k in keys]
     ser.append(series(f"{metric(k0)['label']} cùng kỳ", [ly.get(m - 100, {}).get(k0) for m in yms], color="muted"))
+    if all(v is None for s in ser for v in s["data"]):   # [trend-empty-v1] không vẽ khối trống
+        return {"text": "\n".join(f"- **{metric(k)['label']}**: chưa có dữ liệu cho {tr.label}." for k in keys),
+                "kpis": [], "blocks": [], "facts": [], "sql": [], "notes": []}
     blocks = [chart("trend", f"Diễn biến {metric(k0)['label'].lower()} {tr.label}", "line", month_labels(yms), ser,
                     fmt_=metric(k0).get("format", "money"), width="full")]
     vals = [(m, cur.get(m, {}).get(k0)) for m in yms if cur.get(m, {}).get(k0) is not None]

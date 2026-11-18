@@ -52,7 +52,7 @@ GO
 GRANT SELECT ON dbo.bi_pnl TO [ai4bi_ro];
 ```
 
-Tên bảng/cột phía khách chỉ là ví dụ – lấy đúng tên từ hệ thống của họ. Sau khi tạo view, chạy `pytest` để kiểm cân đối và đối soát trước khi cho người dùng xem.
+Tên bảng/cột phía khách chỉ là ví dụ – lấy đúng tên từ hệ thống của họ. Sau khi tạo view, chạy đối soát (mục dưới) trước khi cho người dùng xem.
 
 ## Kết nối
 
@@ -65,3 +65,24 @@ DATABASE_URL=mssql+pyodbc://ai4bi_ro:***@server/kho?driver=ODBC+Driver+18+for+SQ
 Login phải **chỉ đọc** các view `bi_*`. Chuỗi kết nối chỉ nằm trong biến môi trường, không ghi vào code hay log.
 
 Nếu view của khách đặt tên khác, sửa `table:` trong `app/semantic/sources.yaml` – không sửa code.
+
+## Đối soát và chất lượng dữ liệu
+
+Công cụ chỉ đọc, không sửa dữ liệu, kết quả không chứa tên khách hàng:
+
+```bat
+python tools\crosscheck.py                    :: dữ liệu mẫu
+python tools\crosscheck.py --db user          :: "Dữ liệu của tôi" đã nạp trên máy
+python tools\crosscheck.py --db neon          :: kho theo DATABASE_URL (PostgreSQL: phiên chỉ đọc)
+python tools\crosscheck.py --year 2026 --month 6 --scope region --xlsx doisoat.xlsx
+```
+
+| Lớp | Kiểm gì | Sai số |
+|---|---|---|
+| 3. Bảng | Tổng chi tiết theo (tháng, đơn vị) = tổng chung; năm / quý / tháng khớp ngày; trước chiết khấu − chiết khấu = thuần | 1 đ (≤ 5 đ/dòng: ℹ️ làm tròn) |
+| 4. Ngữ nghĩa | Chỉ tiêu qua lớp ngữ nghĩa = SQL độc lập, theo đơn vị, tháng và lũy kế | 1 đ |
+| 5. Dashboard | KPI trên từng trang = SQL độc lập cho toàn công ty, từng khu vực, từng đơn vị | 1.000 đ |
+| Tài chính | Tài sản = Nợ + Vốn; lưu chuyển tiền = thay đổi tiền; LNST P&L = LNST đầu LCTT; cầu nối hoá đơn ↔ sổ cái (ℹ️) | 1.000 đ |
+| DQ | Mã trống / trùng / thiếu danh mục, tên ứng với ≥ 2 mã; độ phủ kênh, loại KH, ngành hàng (mới ⚠️, tồn đọng ℹ️); ngày sau mốc, NULL, dữ liệu cũ | – |
+
+Mã thoát 1 khi có ❌ – dùng được trong lịch chạy sau mỗi lần nạp.

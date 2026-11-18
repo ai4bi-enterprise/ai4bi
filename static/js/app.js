@@ -57,7 +57,7 @@ function renderPhoneNav() {
       : `<a class="pn-item locked" href="#" data-pro="${g.items[0].key}" data-label="${esc(g.items[0].label)}">${ico}${esc(g.group)}</a>`;
   });
   if (S.meta.can_chat) tabs.splice(Math.min(2, tabs.length), 0,
-    `<button type="button" class="pn-item pn-ai" id="pnAi"><span class="pn-ico">✦</span>Hỏi AI</button>`);
+    `<button type="button" class="pn-item pn-ai" id="pnAi"><span class="pn-ico"><img src="/static/favicon.svg" alt=""></span>Hỏi AI</button>`);
   tabs.push(`<button type="button" class="pn-item" id="pnMore"><span class="pn-ico">☰</span>Thêm</button>`);
   $("#phoneNav").innerHTML = tabs.join("");
 }

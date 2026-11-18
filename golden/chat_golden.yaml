@@ -17,7 +17,7 @@ ctx: {year: 2026, month: 9, mode: quarter}
 # Mức sàn của parser luật trên dữ liệu mẫu: pytest báo lỗi khi tụt dưới mức này; pytest cũng chặn khi trượt cổng G4 (≥ 95% đúng số, 0 lộ phạm vi).
 # Sửa luật NLU làm tăng tỷ lệ → nâng mức sàn trong cùng thay đổi.
 baseline:
-  pro_rules: {intent: 0.98, number: 0.98}
+  pro_rules: {intent: 1.0, number: 1.0}
   lite_rules: {intent: 1.0, number: 1.0}
 
 cases:
@@ -176,6 +176,18 @@ cases:
   - {id: G49, split: dev, group: scope, user: eu, q: "Doanh thu theo đơn vị quý này",
      expect: {intent: breakdown, dim: org},
      check: [{metric: net_revenue, period: [2026, 9, quarter], by: org}]}
+  - {id: G50, split: dev, group: value, q: "Doanh thu Q2/2025",
+     expect: {metrics: [net_revenue], period: [2025, 6, quarter]},
+     check: [{metric: net_revenue, period: [2025, 6, quarter]}]}
+  - {id: G51, split: dev, group: value, q: "Số đơn hàng Q1-2025",
+     expect: {metrics: [orders], period: [2025, 3, quarter]},
+     check: [{metric: orders, period: [2025, 3, quarter]}]}
+  - {id: G52, split: dev, group: value, q: "Lãi sau thuế năm 2025",
+     expect: {metrics: [npat], period: [2025, 12, ytd]},
+     check: [{metric: npat, period: [2025, 12, ytd]}]}
+  - {id: G53, split: dev, group: value, q: "Lãi trước thuế 2025 Q4",
+     expect: {metrics: [pbt], period: [2025, 12, quarter]},
+     check: [{metric: pbt, period: [2025, 12, quarter]}]}
 
   # ================================================================== HOLDOUT (không dùng để chỉnh luật / prompt)
   - {id: H01, split: holdout, group: value, q: "Cho tôi biết doanh số tháng 7 năm 2026",

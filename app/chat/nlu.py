@@ -89,6 +89,9 @@ def parse_period(t: str, ctx: dict) -> dict:
     """Trả {year, month, mode}; thiếu thì lấy từ ngữ cảnh màn hình đang xem."""
     # [cmp-period-v1] "so với (cùng kỳ) năm trước / năm ngoái" là vế so sánh, không phải kỳ hỏi
     t = re.sub(r"\b(?:so voi|cung ky)(?: cung ky)?(?: cua)? nam (?:truoc|ngoai)\b", " cung ky ", t)
+    # [q-short-v1] "Q3", "Q3/2025", "Q3-2025", "2025 Q3" = quý
+    t = re.sub(r"\b(20\d\d)\s*q\s?([1-4])\b", r"quy \2/\1", t)
+    t = re.sub(r"\bq\s?([1-4])\b", r"quy \1", t)
     year, month, mode = ctx.get("year"), ctx.get("month"), ctx.get("mode", "month")
     latest_y, latest_m = ctx.get("latest_year", year), ctx.get("latest_month", month)
     explicit = False
@@ -99,7 +102,7 @@ def parse_period(t: str, ctx: dict) -> dict:
         year, month, mode, explicit = latest_y, latest_m, "ytd", True
     if _has(t, "nam truoc") or _has(t, "nam ngoai"):
         year, month, mode, explicit = latest_y - 1, 12, "ytd", True
-    if m := re.search(r"\bquy (\d|iv|iii|ii|i)\b(?:\s*(?:/|nam)?\s*(20\d\d))?", t):
+    if m := re.search(r"\bquy (\d|iv|iii|ii|i)\b(?:\s*(?:/|-|nam)?\s*(20\d\d))?", t):
         q = int(m.group(1)) if m.group(1).isdigit() else ROMAN[m.group(1)]
         year = int(m.group(2)) if m.group(2) else year
         month, mode, explicit = q * 3, "quarter", True

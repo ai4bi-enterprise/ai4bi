@@ -172,7 +172,7 @@ pbt:
   plan_sql: SUM(CASE WHEN t.scenario = 'plan' AND t.line_code <> 'THUE_TNDN' THEN t.amount ELSE 0 END)
   format: money
   better: up
-  synonyms: [lợi nhuận trước thuế, lntt, ebt]
+  synonyms: [lợi nhuận trước thuế, lntt, ebt, lãi trước thuế, lời trước thuế]
 npat:
   label: Lợi nhuận sau thuế
   domain: pnl
@@ -181,7 +181,7 @@ npat:
   plan_sql: SUM(CASE WHEN t.scenario = 'plan' THEN t.amount ELSE 0 END)
   format: money
   better: up
-  synonyms: [lợi nhuận, lợi nhuận sau thuế, lnst, lãi ròng, lời, net income, profit]
+  synonyms: [lợi nhuận, lợi nhuận sau thuế, lnst, lãi ròng, lời, net income, profit, lãi sau thuế, lãi thuần sau thuế, lời sau thuế]
 pnl_amount:
   label: Giá trị
   domain: pnl

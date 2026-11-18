@@ -23,7 +23,7 @@ const PRO_TEXT = {
   cashflow: "Lưu chuyển tiền: dòng tiền kinh doanh, đầu tư, tài chính; số dư tiền đầu / cuối kỳ.",
   inventory: "Tồn kho: giá trị tồn, số ngày tồn, hàng chậm luân chuyển theo kho và nhóm hàng.",
 };
-$("#menu").addEventListener("click", (e) => {
+function proPreview(e) {
   const a = e.target.closest("[data-pro]");
   if (!a) return;
   e.preventDefault();
@@ -35,7 +35,45 @@ $("#menu").addEventListener("click", (e) => {
   $("#proDemo").href = S.meta.edition?.demo_url || "#";
   $("#proContact").innerHTML = contactLinks(S.meta.edition?.contact);
   $("#proDlg").showModal();
+}
+$("#menu").addEventListener("click", proPreview);
+
+// ------------------------------------------------------------ [phone-nav-v1] điện thoại dọc: thanh điều hướng dưới (Blueprint 11.6, Hình 8)
+// Mỗi nhóm menu = 1 tab (nhớ trang vừa xem trong nhóm), "Hỏi AI" ở giữa, "Thêm" mở menu đầy đủ + tài khoản.
+const phoneMq = matchMedia("(max-width: 640px) and (orientation: portrait)");
+const syncPhone = () => document.documentElement.classList.toggle("phone-portrait", phoneMq.matches);
+syncPhone();
+phoneMq.addEventListener("change", syncPhone);
+
+function renderPhoneNav() {
+  const tabs = S.meta.menu.map((g) => {
+    const open = g.items.filter((i) => !i.locked);
+    const keys = open.map((i) => i.key);
+    const last = store.get("tab." + g.group, null);
+    const go = keys.includes(last) ? last : keys[0];
+    const ico = `<span class="pn-ico">${ICONS[g.items[0]?.icon] || "•"}</span>`;
+    return go
+      ? `<a class="pn-item" href="#/${go}" data-keys="${keys.join(" ")}">${ico}${esc(g.group)}</a>`
+      : `<a class="pn-item locked" href="#" data-pro="${g.items[0].key}" data-label="${esc(g.items[0].label)}">${ico}${esc(g.group)}</a>`;
+  });
+  if (S.meta.can_chat) tabs.splice(Math.min(2, tabs.length), 0,
+    `<button type="button" class="pn-item pn-ai" id="pnAi"><span class="pn-ico">✦</span>Hỏi AI</button>`);
+  tabs.push(`<button type="button" class="pn-item" id="pnMore"><span class="pn-ico">☰</span>Thêm</button>`);
+  $("#phoneNav").innerHTML = tabs.join("");
+}
+$("#phoneNav").addEventListener("click", (e) => {
+  if (e.target.closest("#pnMore")) return openSidebar();
+  if (e.target.closest("#pnAi")) return toggleDrawer();
+  proPreview(e);
 });
+function markPhoneNav(key) {
+  for (const a of document.querySelectorAll("#phoneNav [data-keys]")) {
+    const on = a.dataset.keys.split(" ").includes(key);
+    a.classList.toggle("active", on);
+    if (on) { a.href = "#/" + key; store.set("tab." + S.meta.menu.find((g) => g.items.some((i) => i.key === key)).group, key); }
+  }
+  $("#pnAi")?.classList.toggle("active", key === "chat");
+}
 
 // ------------------------------------------------------------ tài khoản
 async function signOut(all) {
@@ -156,6 +194,7 @@ async function loadMeta() {
     (S.meta.can_chat ? `<div class="nav-group">Trợ lý AI</div><a class="nav-item" href="#/chat" data-key="chat"><span class="nav-ico">✦</span>Hỏi đáp dữ liệu</a>` : "") +
     (S.meta.data?.upload ? `<div class="nav-group">Dữ liệu</div><a class="nav-item" href="/data"><span class="nav-ico">⬆</span>Dữ liệu của tôi${S.meta.data.active === "user" ? "" : '<span class="pro-tag">MẪU</span>'}</a>` : "");
   $("#chatToggle").hidden = !S.meta.can_chat;
+  renderPhoneNav();
   S.items = items.filter((i) => !i.locked);
   const lite = S.meta.edition?.name === "lite";
   $("#editionTag").hidden = !lite;
@@ -253,7 +292,8 @@ const drawer = $("#chatDrawer");
 const openDrawer = () => { drawer.classList.add("open"); $("#chatCtx").textContent = `Ngữ cảnh: ${periodLabel()}${S.org ? " · " + S.org.split(":")[1] : ""}`; };
 const chatOpts = () => ({ api, download, context: chatContext, historyOn: !!S.meta?.chat_history, exportOn: S.meta?.can_export !== false });
 let drawerChat = null;
-$("#chatToggle").onclick = () => (drawer.classList.contains("open") ? drawer.classList.remove("open") : openDrawer());
+const toggleDrawer = () => (drawer.classList.contains("open") ? drawer.classList.remove("open") : openDrawer());
+$("#chatToggle").onclick = toggleDrawer;
 $("#chatClose").onclick = () => drawer.classList.remove("open");
 let pageChat = null;
 window.addEventListener("ai4bi:ask", (e) => (S.module === "chat" && pageChat ? pageChat : drawerChat).send(e.detail));
@@ -277,6 +317,7 @@ function route() {
   const key = location.hash.replace(/^#\//, "") || S.items[0]?.key || "chat";
   S.module = key;
   document.querySelectorAll(".nav-item").forEach((a) => a.classList.toggle("active", a.dataset.key === key));
+  markPhoneNav(key);
   $("#sidebar").classList.remove("open");
   $("#scrim").classList.remove("open");
   if (key === "chat" && S.meta.can_chat) return renderChatPage();
@@ -284,7 +325,8 @@ function route() {
   renderDashboard(key);
 }
 window.addEventListener("hashchange", route);
-$("#menuBtn").onclick = () => { $("#sidebar").classList.add("open"); $("#scrim").classList.add("open"); };
+function openSidebar() { $("#sidebar").classList.add("open"); $("#scrim").classList.add("open"); }
+$("#menuBtn").onclick = openSidebar;
 $("#scrim").onclick = () => { $("#sidebar").classList.remove("open"); $("#scrim").classList.remove("open"); };
 
 (async () => {

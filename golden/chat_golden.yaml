@@ -14,11 +14,11 @@
 
 ctx: {year: 2026, month: 9, mode: quarter}
 
-# Mức sàn của parser luật trên dữ liệu mẫu: pytest báo lỗi khi tụt dưới mức này. Cổng G4 vẫn là ≥ 95% đúng số.
+# Mức sàn của parser luật trên dữ liệu mẫu: pytest báo lỗi khi tụt dưới mức này; pytest cũng chặn khi trượt cổng G4 (≥ 95% đúng số, 0 lộ phạm vi).
 # Sửa luật NLU làm tăng tỷ lệ → nâng mức sàn trong cùng thay đổi.
 baseline:
-  pro_rules: {intent: 0.89, number: 0.86}
-  lite_rules: {intent: 0.95, number: 0.88}
+  pro_rules: {intent: 0.98, number: 0.98}
+  lite_rules: {intent: 1.0, number: 1.0}
 
 cases:
   # ------------------------------------------------------------------ 1 chỉ tiêu, các cách nói kỳ

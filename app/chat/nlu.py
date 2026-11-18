@@ -87,6 +87,8 @@ ROMAN = {"i": 1, "ii": 2, "iii": 3, "iv": 4}
 
 def parse_period(t: str, ctx: dict) -> dict:
     """Trả {year, month, mode}; thiếu thì lấy từ ngữ cảnh màn hình đang xem."""
+    # [cmp-period-v1] "so với (cùng kỳ) năm trước / năm ngoái" là vế so sánh, không phải kỳ hỏi
+    t = re.sub(r"\b(?:so voi|cung ky)(?: cung ky)?(?: cua)? nam (?:truoc|ngoai)\b", " cung ky ", t)
     year, month, mode = ctx.get("year"), ctx.get("month"), ctx.get("mode", "month")
     latest_y, latest_m = ctx.get("latest_year", year), ctx.get("latest_month", month)
     explicit = False
@@ -140,13 +142,14 @@ def parse_one(question: str, ctx: dict) -> dict:
             q["filters"][d] += [v for v in vals if v not in q["filters"][d]]
             rest = re.sub(rf"(?<!\w){re.escape(p)}(?!\w)", " ", rest)
     metrics, rest = _take(rest, _metric_phrases())
+    after_metrics = rest   # [trend-rest-v1] "số đơn hàng tháng 9" không phải "hàng tháng"
     dims, rest = _take(rest, _dim_phrases())
     q["metrics"] = metrics[:3]
     # chiều nào đã là bộ lọc 1 giá trị thì không tách theo chiều đó nữa
     q["dims"] = [d for d in dims if not (d in q["filters"] and len(q["filters"][d]) == 1) and d != "month"][:1]
     if any(_has(t, p) for p in ("vi sao", "tai sao", "nguyen nhan", "ly do", "do dau", "yeu to nao", "giai thich")):
         q["intent"] = "explain"
-    elif "month" in dims or any(_has(t, p) for p in ("xu huong", "bien dong", "dien bien", "theo thang", "tung thang",
+    elif "month" in dims or any(_has(after_metrics, p) for p in ("xu huong", "bien dong", "dien bien", "theo thang", "tung thang",
                                                       "hang thang", "12 thang")):
         q["intent"] = "trend"
     elif m := re.search(r"\btop ?(\d+)\b", t):
@@ -169,6 +172,9 @@ def parse_one(question: str, ctx: dict) -> dict:
         q["compare"].append("plan")
         if "plan_revenue" in q["metrics"] and len(q["metrics"]) == 1:
             q["metrics"] = ["net_revenue"]
+    # [filter-value-v1] hỏi giá trị có chỉ tiêu + bộ lọc -> trả giá trị đã lọc, không đổi sang khối dashboard (khối không áp bộ lọc của câu)
+    if blocks and q["intent"] == "value" and q["metrics"] and q["filters"]:
+        blocks = []
     if blocks and (q["intent"] in ("value", "explain") or not q["metrics"]):
         q["block"] = blocks[0]
         if not q["metrics"] or q["intent"] != "explain":

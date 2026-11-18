@@ -347,7 +347,8 @@ debt_to_equity:
   format: times
   better: down
   assess: {good: 1.0, warn: 1.5}
-  synonyms: [đòn bẩy, nợ trên vốn, d/e, đòn bẩy tài chính]
+  synonyms: [đòn bẩy, nợ trên vốn, d/e, đòn bẩy tài chính, nợ phải trả trên vốn chủ, nợ trên vốn chủ,
+             tỷ lệ nợ trên vốn chủ, nợ phải trả trên vốn chủ sở hữu]
 roe:
   label: ROE (năm hoá)
   domain: bs
@@ -418,7 +419,8 @@ cfo:
   joins: [line]
   format: money
   better: up
-  synonyms: [dòng tiền kinh doanh, dòng tiền hoạt động, cfo, lưu chuyển tiền từ hoạt động kinh doanh, dòng tiền hđkd]
+  synonyms: [dòng tiền kinh doanh, dòng tiền hoạt động, cfo, lưu chuyển tiền từ hoạt động kinh doanh, dòng tiền hđkd,
+             dòng tiền từ hoạt động kinh doanh, dòng tiền hoạt động kinh doanh, dòng tiền từ hđkd]
 cfi:
   label: Lưu chuyển tiền từ HĐ đầu tư
   domain: cashflow
@@ -426,7 +428,8 @@ cfi:
   sql: SUM(CASE WHEN l.grp = 'CFI' THEN t.amount ELSE 0 END)
   joins: [line]
   format: money
-  synonyms: [dòng tiền đầu tư, cfi, capex]
+  synonyms: [dòng tiền đầu tư, cfi, capex, dòng tiền từ hoạt động đầu tư, dòng tiền hoạt động đầu tư,
+             lưu chuyển tiền từ hoạt động đầu tư]
 cff:
   label: Lưu chuyển tiền từ HĐ tài chính
   domain: cashflow
@@ -434,7 +437,8 @@ cff:
   sql: SUM(CASE WHEN l.grp = 'CFF' THEN t.amount ELSE 0 END)
   joins: [line]
   format: money
-  synonyms: [dòng tiền tài chính, cff]
+  synonyms: [dòng tiền tài chính, cff, dòng tiền từ hoạt động tài chính, dòng tiền hoạt động tài chính,
+             lưu chuyển tiền từ hoạt động tài chính]
 net_cash_flow:
   label: Lưu chuyển tiền thuần trong kỳ
   domain: cashflow

@@ -66,6 +66,18 @@ Login phải **chỉ đọc** các view `bi_*`. Chuỗi kết nối chỉ nằm 
 
 Nếu view của khách đặt tên khác, sửa `table:` trong `app/semantic/sources.yaml` – không sửa code.
 
+## Mốc dữ liệu (làm mới cache)
+
+Sau mỗi lần nạp thành công, quy trình nạp ghi 2 dòng vào `bi_meta`:
+
+| key | value |
+|---|---|
+| `data_version` | Chuỗi đổi khi nội dung đổi – nên dùng dấu vân tay nội dung (`app/core/marker.py` → `fingerprint`); nội dung không đổi thì giữ nguyên |
+| `data_loaded_at` | Thời điểm nạp, dạng ISO (VD `2026-11-18T03:00:00+07:00`) |
+
+AI4BI đọc mốc tối đa 60 giây/lần; mốc đổi thì dashboard và chatbot tự làm mới. Thiếu `data_version` thì cache chỉ làm mới
+theo thời hạn 10 phút (riêng SQLite: theo thời điểm sửa file). `tools/load_to_postgres.py` và "Dữ liệu của tôi" tự ghi mốc.
+
 ## Đối soát và chất lượng dữ liệu
 
 Công cụ chỉ đọc, không sửa dữ liệu, kết quả không chứa tên khách hàng:

@@ -11,7 +11,6 @@ Nguyên tắc (Blueprint P1, P6, P7, P11):
 from __future__ import annotations
 
 import csv
-import hashlib
 import io
 import logging
 import os
@@ -25,6 +24,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from app import config
+from app.core import marker
 
 log = logging.getLogger(__name__)
 
@@ -200,15 +200,14 @@ def has_data(module: str) -> bool:
 
 def reset_caches() -> None:
     """Đổi bộ dữ liệu: đóng kết nối cũ, xoá mọi cache đọc dữ liệu (P9: cache theo phiên bản dữ liệu)."""
-    from app.chat import nlu
-    from app.core import cache, db, semantic
+    from app.core import db, marker
     try:
         db.engine().dispose()
     except Exception:  # noqa: BLE001
         pass
-    for f in (db.engine, db.meta, semantic.catalog, _available, nlu._values):
-        f.cache_clear()
-    cache.cache.data.clear()
+    db.engine.cache_clear()
+    marker.clear_derived()
+    marker.reset()
 
 
 def switch(to: str) -> None:
@@ -682,7 +681,8 @@ def _write(data: dict, orgs: list[dict], rep: Report, filename: str, content: by
             "source": f"Dữ liệu doanh nghiệp nạp từ file {Path(filename).name[:80]} ngày {today:%d/%m/%Y}",
             "transform_note": "Nạp nguyên giá trị từ file theo template AI4BI; chỉ tách năm/quý/tháng từ ngày, "
                               "bỏ dòng trống và dòng tổng cộng.",
-            "data_version": hashlib.sha256(content).hexdigest()[:16],
+            **(marker.stamp(lambda sql: con.execute(sql).fetchone()[0], _user_version()) or
+               {"data_version": _user_version(), "data_loaded_at": _user_meta("data_loaded_at")}),
             "uploaded_at": datetime.now().isoformat(timespec="seconds"), "file_name": Path(filename).name[:120],
         }
         if rep.info.get("focus_channel"):
@@ -695,6 +695,24 @@ def _write(data: dict, orgs: list[dict], rep: Report, filename: str, content: by
         path.unlink()
         return None
     return path
+
+
+def _user_meta(key: str) -> str | None:
+    if not user_db().exists():
+        return None
+    con = sqlite3.connect(f"file:{user_db().as_posix()}?mode=ro", uri=True)
+    try:
+        r = con.execute("SELECT value FROM bi_meta WHERE key = ?", (key,)).fetchone()
+        return r[0] if r else None
+    except sqlite3.Error:
+        return None
+    finally:
+        con.close()
+
+
+def _user_version() -> str | None:
+    """Mốc của dữ liệu khách đang có – nạp lại đúng nội dung cũ thì giữ phiên bản (Blueprint 10.4)."""
+    return _user_meta("data_version")
 
 
 def activate_staging() -> None:

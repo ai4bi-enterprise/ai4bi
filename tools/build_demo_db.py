@@ -23,6 +23,11 @@ import collections
 import datetime as dt
 import os
 import sqlite3
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app.core import marker  # noqa: E402
 
 SHIFT_YEARS = 13
 USD_VND = 25_000
@@ -338,6 +343,7 @@ def build(raw: str, out: str) -> None:
                            f"của nguồn; 1 USD = {USD_VND:,} VND (minh hoạ); kế hoạch doanh thu = chỉ tiêu quý kênh Đại lý "
                            "chia đều 3 tháng; kế hoạch P&L chỉ có cho năm 2024; lưu chuyển tiền tệ lập gián tiếp từ BS + P&L."),
     }
+    meta.update(marker.stamp(lambda sql: con.execute(sql).fetchone()[0], None))   # mốc dữ liệu (app/core/marker.py)
     con.executemany("INSERT INTO bi_meta VALUES (?,?)", meta.items())
     con.commit()
     for t in ("bi_org", "bi_sales", "bi_sales_plan", "bi_pnl", "bi_cost_detail", "bi_bs", "bi_cashflow", "bi_inventory"):

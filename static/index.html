@@ -20,10 +20,10 @@
     </div>
     <nav id="menu"></nav>
     <div class="upgrade" id="upgrade" hidden>
-      <b>Mở khoá AI4BI Pro</b>
-      <span>P&amp;L, Bảng cân đối, Dòng tiền, Tồn kho, đăng nhập &amp; phân quyền, kết nối Postgres/SQL Server.</span>
-      <a class="btn-ai" id="upgradePro" target="_blank" rel="noopener">Xem bản Pro</a>
-      <a class="link-btn" id="upgradeDemo" target="_blank" rel="noopener">Đặt lịch demo 1-1</a>
+      <b id="upgradeTitle">Mở khoá AI4BI Pro</b>
+      <span id="upgradeText">P&amp;L, Bảng cân đối, Dòng tiền, Tồn kho, đăng nhập &amp; phân quyền, kết nối Postgres/SQL Server.</span>
+      <a class="btn-ai" id="upgradeDemo" target="_blank" rel="noopener">Xem demo bản Pro</a>
+      <div class="contact" id="upgradeContact"></div>
     </div>
     <div class="side-foot">
       <div class="who" id="who"></div>
@@ -85,6 +85,15 @@
     <p class="muted small">Sau khi đổi, các thiết bị khác sẽ phải đăng nhập lại.</p>
     <p class="login-msg" id="pwMsg" role="alert"></p>
     <div class="dlg-actions"><button class="link-btn" value="cancel" formnovalidate>Huỷ</button><button class="btn-ai" value="ok">Lưu</button></div>
+  </form>
+</dialog>
+<dialog class="dlg dlg-wide" id="proDlg" aria-labelledby="proTitle">
+  <form method="dialog">
+    <h2 id="proTitle">AI4BI Pro</h2>
+    <p class="muted small" id="proText"></p>
+    <img class="pro-shot" id="proShot" alt="" loading="lazy">
+    <div class="contact" id="proContact"></div>
+    <div class="dlg-actions"><button class="link-btn" value="cancel">Đóng</button><a class="btn-ai" id="proDemo" target="_blank" rel="noopener">Xem demo trực tiếp</a></div>
   </form>
 </dialog>
 <dialog class="dlg dlg-wide" id="annDlg" aria-labelledby="annTitle">

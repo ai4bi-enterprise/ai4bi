@@ -43,6 +43,14 @@ def test_menu_shows_pro_items_locked(client):
     assert all(items[k]["locked"] for k in LOCKED)
 
 
+@pytest.mark.parametrize("module", LOCKED)
+def test_locked_item_has_preview_image(client, module):   # bấm mục 🔒 PRO -> ảnh minh hoạ + liên hệ
+    r = client.get(f"/static/img/pro/{module}.png")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    ed = client.get("/api/meta").json()["edition"]
+    assert ed["demo_url"].startswith("https://") and ed["contact"]["phone"] and ed["contact"]["email"]
+
+
 @pytest.mark.parametrize("module", ["overview", "sales"])
 def test_dashboard_works(client, module):
     r = client.get(f"/api/dashboard/{module}", params={"year": 2026, "month": 9, "mode": "quarter"})

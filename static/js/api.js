@@ -58,3 +58,12 @@ export function saveBlob(blob, name) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
+
+// [preview-v1] nút liên hệ mua bản Pro (Zalo / Viber / WhatsApp / email) – dùng ở thanh bên, khung xem trước, trang đăng nhập
+export function contactLinks(c) {
+  if (!c) return "";
+  const a = (href, label, title) => `<a class="chip-link" href="${esc(href)}" target="_blank" rel="noopener" title="${esc(title)}">${label}</a>`;
+  return `<span class="muted small">Liên hệ mua Pro: <b>${esc(c.phone)}</b></span><div>`
+    + a(c.zalo, "Zalo", "Nhắn Zalo " + c.phone) + a(c.viber, "Viber", "Nhắn Viber " + c.phone)
+    + a(c.whatsapp, "WhatsApp", "Nhắn WhatsApp " + c.phone) + a(c.mailto, "Email", c.email) + "</div>";
+}

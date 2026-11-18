@@ -3,7 +3,7 @@
 import { blocksGrid, blockTable, destroyCharts, esc, kpiGrid, md } from "./render.js";
 import { saveBlob } from "./api.js";
 
-export function createChat({ body, form, api, download, context, onAsk, tools, historyOn }) {
+export function createChat({ body, form, api, download, context, onAsk, tools, historyOn, exportOn = true }) {
   const input = form.querySelector("textarea");
   const history = [];
   const turns = [];          // [{ q, r }] của cuộc đang mở – dùng cho "Chia sẻ HTML"
@@ -96,7 +96,7 @@ export function createChat({ body, form, api, download, context, onAsk, tools, h
       ${r.detail ? `<details><summary>Số liệu chi tiết (do code tính)</summary><div class="md">${md(r.detail)}</div></details>` : ""}
       ${r.sql?.length ? `<details><summary>Xem SQL đã chạy (${r.sql.length})</summary><pre>${esc(r.sql.join(";\n\n"))}</pre></details>` : ""}`;
     el.append(meta);
-    if (r.kpis?.length || r.blocks?.length) el.append(exportBar(r, q));
+    if (exportOn && (r.kpis?.length || r.blocks?.length)) el.append(exportBar(r, q));
     if (r.log_id) el.append(feedbackBar(r.log_id));
     if (r.suggestions?.length) el.append(chips(r.suggestions));
     return el;
@@ -188,7 +188,7 @@ export function createChat({ body, form, api, download, context, onAsk, tools, h
   if (tools) {
     tools.innerHTML = `<button type="button" class="icon-btn" data-t="new" title="Cuộc trò chuyện mới">＋</button>
       ${historyOn ? `<button type="button" class="icon-btn" data-t="hist" title="Lịch sử trò chuyện">🕘</button>` : ""}
-      <button type="button" class="icon-btn" data-t="share" title="Chia sẻ cả cuộc trò chuyện (HTML)">⤴</button>`;
+      ${exportOn ? `<button type="button" class="icon-btn" data-t="share" title="Chia sẻ cả cuộc trò chuyện (HTML)">⤴</button>` : ""}`;
     tools.onclick = (e) => {
       const t = e.target.closest("[data-t]")?.dataset.t;
       if (t === "new") hello();

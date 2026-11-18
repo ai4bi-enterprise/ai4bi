@@ -122,7 +122,8 @@ def meta(user: User = Depends(current_user)):
         "company": m.get("company_name"), "as_of": m.get("as_of_date"), "latest": {"year": ly, "month": lm},
         "first": {"year": first // 100, "month": first % 100}, "source": m.get("source"), "note": m.get("transform_note"),
         "menu": [g for g in menu if g["items"]], "org_tree": tree, "can_chat": user.can("chat"), "llm": config.llm_on(),
-        "chat_history": CHATLOG,
+        "chat_history": CHATLOG and not user.is_preview,
+        "preview": user.is_preview, "can_export": not user.is_preview,   # [preview-v1]
         "announcements": CHATLOG,                       # thông báo hệ thống (bản Pro có đăng nhập)
         "team_log": CHATLOG and user.can("chat_log_team"),
         "user": {"username": user.username, "display_name": user.display_name, "role": user.role,
@@ -131,7 +132,8 @@ def meta(user: User = Depends(current_user)):
         if config.AUTH_MODE == "demo" and config.PRO else [],
         "data": {"upload": dataset.enabled() and (config.AUTH_MODE != "password" or user.is_admin),
                  "active": dataset.active()},
-        "edition": {"name": config.EDITION, "upgrade_url": config.UPGRADE_URL, "contact_url": config.CONTACT_URL},
+        "edition": {"name": config.EDITION, "upgrade_url": config.UPGRADE_URL, "demo_url": config.DEMO_URL,
+                    "contact": config.CONTACT},
         "auth": {"mode": config.AUTH_MODE, "email": user.email, "is_admin": user.is_admin,
                  "perm_version": user.perm_version},
     }
@@ -216,7 +218,7 @@ def ask(body: AskBody, request: Request, user: User = Depends(current_user)):
             elif v["limit"]:
                 res["answer"] += (f"\n\nLưu ý: đây là lần thứ {v['count']}/{v['limit']} hỏi ngoài phạm vi; "
                                   "đến ngưỡng tài khoản sẽ tự khoá.")
-    if CHATLOG:                              # lịch sử theo tài khoản (Blueprint 13.3)
+    if CHATLOG and not user.is_preview:      # lịch sử theo tài khoản (Blueprint 13.3); tài khoản chung không lưu
         from app.core import chathistory
         res["session_id"] = chathistory.append(user.user_id, body.session_id, engine.redact(body.question), res,
                                                user.perm_version)
@@ -247,7 +249,7 @@ class RenameBody(BaseModel):
 
 
 def history_user(user: User = Depends(current_user)) -> User:
-    if not CHATLOG:
+    if not CHATLOG or user.is_preview:
         raise HTTPException(404, "Bản này không lưu lịch sử chat")
     require(user, "chat")
     return user
@@ -314,14 +316,20 @@ def _export_audit(user: User, request: Request, action: str, detail: str) -> Non
         log.warning("Không ghi được audit %s: %s", action, e)
 
 
+def export_user(user: User = Depends(current_user)) -> User:
+    require(user, "chat")
+    if user.is_preview:   # [preview-v1] xem được, tải về phải mua bản Pro
+        raise HTTPException(403, "Tài khoản xem thử không tải được số liệu. Liên hệ để mua AI4BI Pro.")
+    return user
+
+
 def _download(content: bytes | str, name: str, mime: str) -> Response:
     return Response(content, media_type=mime, headers={"Content-Disposition": f'attachment; filename="{name}"',
                                                        "Cache-Control": "no-store"})
 
 
 @app.post("/api/chat/export-xlsx")
-def chat_export_xlsx(body: ExportBody, request: Request, user: User = Depends(current_user)):
-    require(user, "chat")
+def chat_export_xlsx(body: ExportBody, request: Request, user: User = Depends(export_user)):
     from app.core import export
     data = export.xlsx(body.question, body.answer, db.meta().get("company_name", ""), user.display_name)
     _export_audit(user, request, "chat_export", f"xlsx q={engine.redact(body.question)[:200]}")
@@ -330,8 +338,7 @@ def chat_export_xlsx(body: ExportBody, request: Request, user: User = Depends(cu
 
 
 @app.post("/api/chat/share-log")
-def chat_share_log(body: ShareBody, request: Request, user: User = Depends(current_user)):
-    require(user, "chat")
+def chat_share_log(body: ShareBody, request: Request, user: User = Depends(export_user)):
     from app.core import export
     page = export.share_html(body.title, [t.model_dump() for t in body.turns], db.meta().get("company_name", ""),
                              user.display_name)

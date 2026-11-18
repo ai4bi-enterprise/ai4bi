@@ -12,7 +12,7 @@
 
 [![Dùng thử Live Demo](https://img.shields.io/badge/🚀_Dùng_thử_Live_Demo-không_cần_cài_đặt-2ea44f?style=for-the-badge)](https://ai4bi-demo.onrender.com/#/sales)
 
-[**⚡ Chạy thử trong 60 giây**](#-chạy-thử-trong-60-giây) · [**💎 So sánh Lite / Pro / Enterprise**](#-so-sánh-phiên-bản) · [**📅 Đặt lịch demo 1-1**](https://calendly.com/ai4bi-contact/demo)
+[**⚡ Chạy thử trong 60 giây**](#-chạy-thử-trong-60-giây) · [**💎 So sánh Lite / Pro / Enterprise**](#-so-sánh-phiên-bản) · [**👀 Xem thử bản Pro**](https://ai4bi.vercel.app/login) · [**💬 Zalo 0938930369**](https://zalo.me/0938930369)
 
 </div>
 
@@ -119,10 +119,12 @@ Kiểm thử: `pip install -r requirements-dev.txt && pytest -q`.
 
 - **🚀 AI4BI Pro** – quyền truy cập repo private chứa toàn bộ mã nguồn (frontend, backend, đăng nhập, phân quyền, đa CSDL) và các bản cập nhật.
   👉 [Liên hệ mua bản Pro](mailto:ai4bi.contact@gmail.com?subject=AI4BI%20Pro)
+  👀 **Xem thử trước khi mua:** [ai4bi.vercel.app](https://ai4bi.vercel.app/login) – đủ 6 phân hệ + Trợ lý AI trên dữ liệu demo,
+  tài khoản xem thử có sẵn ở trang đăng nhập (chỉ xem, không tải số liệu về). Trong bản Lite, bấm mục 🔒 PRO trên menu để xem ảnh minh hoạ.
 - **🏢 AI4BI Enterprise** – chúng tôi đấu nối ERP / phần mềm kế toán / Data Warehouse của bạn, chuẩn hoá chỉ số cho Ban điều hành, cài đặt tại chỗ.
-  👉 [Đặt lịch demo 1-1 trên dữ liệu của bạn (30 phút)](https://calendly.com/ai4bi-contact/demo)
+  👉 Hẹn demo 1-1 trên dữ liệu của bạn: nhắn [Zalo](https://zalo.me/0938930369) · [WhatsApp](https://wa.me/84938930369) · Viber **0938930369**
 
-📬 **Email:** [ai4bi.contact@gmail.com](mailto:ai4bi.contact@gmail.com)
+📬 **Email:** [ai4bi.contact@gmail.com](mailto:ai4bi.contact@gmail.com) · 📱 **Zalo / Viber / WhatsApp:** 0938930369
 
 ## 🤝 Đóng góp
 

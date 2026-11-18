@@ -62,6 +62,17 @@ nav { flex: 1; overflow: auto; }
 .upgrade b { color: var(--text); font-size: 13px; }
 .upgrade .btn-ai { display: grid; place-items: center; text-decoration: none; }
 .upgrade .link-btn { text-align: center; }
+.contact { display: grid; gap: 6px; }  /* [preview-v1] */
+.contact > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-link { display: inline-flex; align-items: center; min-height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface); color: var(--text); font-size: 12px; font-weight: 600; text-decoration: none; }
+.chip-link:hover { border-color: var(--accent); color: var(--accent); }
+.pro-shot { display: block; width: 100%; max-height: 50vh; object-fit: contain; object-position: top; margin: 12px 0;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.dlg-actions a.btn-ai { display: inline-grid; place-items: center; text-decoration: none; }
+.preview-box { margin-top: 16px; padding: 12px; border: 1px dashed var(--accent); border-radius: var(--radius); background: var(--accent-soft);
+  display: grid; gap: 8px; font-size: 13px; }
+.preview-box code { font-size: 13px; user-select: all; }
 .side-foot { border-top: 1px solid var(--border); padding-top: 12px; display: grid; gap: 10px; }
 .who { font-size: 12px; color: var(--text-2); padding: 0 4px; }
 .who b { color: var(--text); display: block; font-size: 13px; }

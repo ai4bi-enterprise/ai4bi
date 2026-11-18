@@ -1,7 +1,7 @@
 // Khung ứng dụng: menu, bộ chọn kỳ / đơn vị / vai trò, định tuyến, trang dashboard và trang chat.
 import { blocksGrid, destroyCharts, esc, insightsCard, kpiGrid, redrawAll } from "./render.js";
 import { createChat } from "./chat.js";
-import { api as rawApi, download as rawDownload, toLogin } from "./api.js";
+import { api as rawApi, contactLinks, download as rawDownload, toLogin } from "./api.js";
 
 const $ = (s) => document.querySelector(s);
 const store = {
@@ -15,6 +15,27 @@ const S = { meta: null, user: store.get("user", null), period: store.get("period
 const demoHeader = () => (S.meta?.auth?.mode === "password" || !S.user ? {} : { "X-Demo-User": S.user });
 const api = (path, opts = {}) => rawApi(path, opts, demoHeader());
 const download = (path, body) => rawDownload(path, body, demoHeader());
+
+// ------------------------------------------------------------ [preview-v1] bản Lite: bấm mục 🔒 PRO -> xem trước + liên hệ
+const PRO_TEXT = {
+  pnl: "Kết quả kinh doanh: doanh thu, giá vốn, lợi nhuận gộp, EBITDA, lãi sau thuế theo tháng / quý / lũy kế, so kế hoạch và cùng kỳ.",
+  bs: "Bảng cân đối: tài sản, nợ, vốn chủ; chỉ số thanh khoản, nợ trên vốn; xu hướng theo kỳ.",
+  cashflow: "Lưu chuyển tiền: dòng tiền kinh doanh, đầu tư, tài chính; số dư tiền đầu / cuối kỳ.",
+  inventory: "Tồn kho: giá trị tồn, số ngày tồn, hàng chậm luân chuyển theo kho và nhóm hàng.",
+};
+$("#menu").addEventListener("click", (e) => {
+  const a = e.target.closest("[data-pro]");
+  if (!a) return;
+  e.preventDefault();
+  const k = a.dataset.pro;
+  $("#proTitle").textContent = `${a.dataset.label} – có ở bản AI4BI Pro`;
+  $("#proText").textContent = (PRO_TEXT[k] || "") + " Xem trực tiếp trên bản demo (tài khoản xem thử có sẵn ở trang đăng nhập).";
+  $("#proShot").src = `/static/img/pro/${k}.png`;
+  $("#proShot").alt = `Ảnh minh hoạ ${a.dataset.label}`;
+  $("#proDemo").href = S.meta.edition?.demo_url || "#";
+  $("#proContact").innerHTML = contactLinks(S.meta.edition?.contact);
+  $("#proDlg").showModal();
+});
 
 // ------------------------------------------------------------ tài khoản
 async function signOut(all) {
@@ -130,7 +151,7 @@ async function loadMeta() {
   const items = S.meta.menu.flatMap((g) => g.items);
   $("#menu").innerHTML = S.meta.menu.map((g) => `<div class="nav-group">${esc(g.group)}</div>` +
     g.items.map((i) => i.locked
-      ? `<a class="nav-item locked" href="${esc(S.meta.edition.upgrade_url)}" target="_blank" rel="noopener" title="Có ở bản AI4BI Pro"><span class="nav-ico">${ICONS[i.icon] || "•"}</span>${esc(i.label)}<span class="pro-tag">🔒 PRO</span></a>`
+      ? `<a class="nav-item locked" href="#" data-pro="${i.key}" data-label="${esc(i.label)}" title="Có ở bản AI4BI Pro – bấm để xem trước"><span class="nav-ico">${ICONS[i.icon] || "•"}</span>${esc(i.label)}<span class="pro-tag">🔒 PRO</span></a>`
       : `<a class="nav-item" href="#/${i.key}" data-key="${i.key}"><span class="nav-ico">${ICONS[i.icon] || "•"}</span>${esc(i.label)}</a>`).join("")).join("") +
     (S.meta.can_chat ? `<div class="nav-group">Trợ lý AI</div><a class="nav-item" href="#/chat" data-key="chat"><span class="nav-ico">✦</span>Hỏi đáp dữ liệu</a>` : "") +
     (S.meta.data?.upload ? `<div class="nav-group">Dữ liệu</div><a class="nav-item" href="/data"><span class="nav-ico">⬆</span>Dữ liệu của tôi${S.meta.data.active === "user" ? "" : '<span class="pro-tag">MẪU</span>'}</a>` : "");
@@ -138,10 +159,14 @@ async function loadMeta() {
   S.items = items.filter((i) => !i.locked);
   const lite = S.meta.edition?.name === "lite";
   $("#editionTag").hidden = !lite;
-  $("#upgrade").hidden = !lite;
-  if (lite) {
-    $("#upgradePro").href = S.meta.edition.upgrade_url;
-    $("#upgradeDemo").href = S.meta.edition.contact_url;
+  $("#upgrade").hidden = !(lite || S.meta.preview);
+  $("#upgradeContact").innerHTML = contactLinks(S.meta.edition?.contact);
+  $("#upgradeDemo").href = S.meta.edition?.demo_url || "#";
+  $("#upgradeDemo").hidden = !lite;
+  if (S.meta.preview) {   // [preview-v1] tài khoản xem thử chung trên bản Pro
+    $("#upgradeTitle").textContent = "Bạn đang xem thử AI4BI Pro";
+    $("#upgradeText").textContent = "Dữ liệu demo, không tải số liệu về. Muốn dùng trên dữ liệu của công ty bạn: liên hệ mua bản Pro.";
+    $("#pwBtn").hidden = $("#logoutAllBtn").hidden = true;
   }
   // kỳ
   const { latest, first } = S.meta;
@@ -226,7 +251,7 @@ async function renderDashboard(module) {
 const chatContext = () => ({ ...S.period, filters: filters(), module: S.module });
 const drawer = $("#chatDrawer");
 const openDrawer = () => { drawer.classList.add("open"); $("#chatCtx").textContent = `Ngữ cảnh: ${periodLabel()}${S.org ? " · " + S.org.split(":")[1] : ""}`; };
-const chatOpts = () => ({ api, download, context: chatContext, historyOn: !!S.meta?.chat_history });
+const chatOpts = () => ({ api, download, context: chatContext, historyOn: !!S.meta?.chat_history, exportOn: S.meta?.can_export !== false });
 let drawerChat = null;
 $("#chatToggle").onclick = () => (drawer.classList.contains("open") ? drawer.classList.remove("open") : openDrawer());
 $("#chatClose").onclick = () => drawer.classList.remove("open");

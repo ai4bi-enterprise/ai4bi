@@ -19,7 +19,19 @@ PRO = EDITION == "pro"
 PRO_MODULES = ("pnl", "bs", "cashflow", "inventory")  # phân hệ chỉ có ở bản Pro
 LOCKED_MODULES = () if PRO else PRO_MODULES          # bản Lite: hiện trên menu kèm nhãn 🔒 PRO
 UPGRADE_URL = os.getenv("UPGRADE_URL", "https://github.com/ai4bi-enterprise/ai4bi#-so-sánh-phiên-bản")
-CONTACT_URL = os.getenv("CONTACT_URL", "https://calendly.com/ai4bi-contact/demo")
+DEMO_URL = os.getenv("DEMO_URL", "https://ai4bi.vercel.app/login")   # bản Pro chạy trên dữ liệu demo, có tài khoản xem thử
+CONTACT_PHONE = os.getenv("CONTACT_PHONE", "0938930369")              # Zalo / Viber / WhatsApp
+CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "ai4bi.contact@gmail.com")
+_intl = "84" + CONTACT_PHONE.lstrip("0")
+CONTACT = {"phone": CONTACT_PHONE, "email": CONTACT_EMAIL, "zalo": f"https://zalo.me/{CONTACT_PHONE}",
+           "viber": f"viber://chat?number=%2B{_intl}", "whatsapp": f"https://wa.me/{_intl}",
+           "mailto": f"mailto:{CONTACT_EMAIL}?subject=AI4BI%20Pro"}
+
+# [preview-v1] Tài khoản xem thử chung (bản Pro): vai trò PREVIEW_PROFILE xem mọi phân hệ trên dữ liệu demo,
+# không xuất file, không đổi mật khẩu, không lịch sử chat. Có PREVIEW_EMAIL + PREVIEW_PASSWORD thì trang /login hiện sẵn.
+PREVIEW_PROFILE = "xem_thu"
+PREVIEW_EMAIL = os.getenv("PREVIEW_EMAIL", "")
+PREVIEW_PASSWORD = os.getenv("PREVIEW_PASSWORD", "")
 
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{(ROOT / 'data' / 'aimoingay_demo.db').as_posix()}")
 SEMANTIC_DIR = Path(os.getenv("SEMANTIC_DIR", ROOT / "app" / "semantic"))

@@ -33,6 +33,10 @@ class User:
     def is_all(self) -> bool:
         return self.orgs is None
 
+    @property
+    def is_preview(self) -> bool:   # [preview-v1] tài khoản xem thử chung (chỉ có ở chế độ đăng nhập)
+        return bool(self.user_id) and not self.is_admin and is_preview_row({"profile": self.profile})
+
     def can(self, module: str) -> bool:
         if module in config.LOCKED_MODULES:  # bản Lite: phân hệ Pro không có
             return False
@@ -51,6 +55,10 @@ def users() -> dict[str, User]:
         orgs = None if scope == "*" else frozenset(scope or [])
         out[name] = User(name, u["display_name"], u.get("role", ""), tuple(u.get("modules", [])), orgs)
     return out
+
+
+def is_preview_row(row: dict) -> bool:
+    return row.get("profile") == config.PREVIEW_PROFILE and not row.get("is_admin")
 
 
 @lru_cache(maxsize=1)
@@ -89,7 +97,7 @@ def current_user(request: Request, x_demo_user: str | None = Header(default=None
             raise HTTPException(status_code=401, detail="Chưa đăng nhập")
         return u
     row = session_row(request)
-    if row["must_change_password"]:
+    if row["must_change_password"] and not is_preview_row(row):
         raise HTTPException(status_code=403, detail="Cần đổi mật khẩu trước khi sử dụng")
     return from_session(row)
 
